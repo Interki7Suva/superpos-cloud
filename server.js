@@ -731,6 +731,7 @@ app.get('/', (req, res) => {
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen selection:bg-sky-500 selection:text-white">
 
+  <!-- PUERTA DE ACCESO SEGURO (LOGIN GATE) -->
   <div id="login-gate" class="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-lg flex items-center justify-center p-4">
     <div class="max-w-md w-full bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl text-center space-y-6">
       <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-sky-600 to-emerald-500 flex items-center justify-center font-black text-3xl shadow-xl shadow-sky-500/20 mx-auto">⚡</div>
@@ -754,6 +755,7 @@ app.get('/', (req, res) => {
     </div>
   </div>
 
+  <!-- DASHBOARD PRINCIPAL -->
   <div id="main-dashboard" class="hidden">
     <header class="border-b border-slate-800 bg-slate-900/90 sticky top-0 z-40 backdrop-blur">
       <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 flex flex-wrap items-center justify-between gap-3">
@@ -864,6 +866,7 @@ app.get('/', (req, res) => {
     </main>
   </div>
 
+  <!-- MODAL: NUEVO SUPERMERCADO -->
   <div id="newModal" class="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-3 hidden">
     <div class="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl max-w-lg w-full p-5 sm:p-6 space-y-4">
       <div class="flex justify-between items-center border-b border-slate-800 pb-3">
@@ -906,6 +909,7 @@ app.get('/', (req, res) => {
     </div>
   </div>
 
+  <!-- MODAL: CONFIGURACIÓN DE CUENTAS DE COBRO & CLAVE MAESTRA -->
   <div id="configModal" class="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-3 hidden">
     <div class="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl max-w-lg w-full p-5 sm:p-6 space-y-4 max-h-[92vh] overflow-y-auto custom-scroll">
       <div class="flex justify-between items-center border-b border-slate-800 pb-3">
@@ -972,6 +976,7 @@ app.get('/', (req, res) => {
     </div>
   </div>
 
+  <!-- MODAL: EDITAR PERMISOS DE MÓDULOS & DETALLES DEL SUPERMERCADO -->
   <div id="editModulesModal" class="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-3 hidden">
     <div class="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl max-w-2xl w-full p-5 sm:p-6 space-y-4 max-h-[92vh] overflow-y-auto custom-scroll">
       <div class="flex justify-between items-center border-b border-slate-800 pb-3">
@@ -1436,7 +1441,7 @@ app.get('/', (req, res) => {
         await fetch('/api/cloud/admin/toggle-status', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tenantId: tenantId, status: newStatus })
+          body: JSON.stringify({ tenantId, status: newStatus })
         });
         loadTenants();
       } catch (e) {
