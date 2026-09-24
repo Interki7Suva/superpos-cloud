@@ -963,9 +963,12 @@ app.get('/', (req, res) => {
       <div class="flex justify-between items-center border-b border-slate-800 pb-3">
         <div>
           <h3 class="font-black text-base text-white flex items-center gap-2">
-            <span>✏️</span> Editor de Módulos & Licencia
+            <span>✏️</span> Editor de Empresa & Módulos
           </h3>
-          <span id="em-company-subtitle" class="text-xs text-sky-400 font-mono font-bold"></span>
+          <div class="flex items-center gap-2 mt-0.5">
+            <span id="em-company-subtitle" class="text-xs text-sky-400 font-bold"></span>
+            <span id="em-tenant-id-badge" class="text-[10px] bg-slate-800 text-emerald-400 px-2 py-0.5 rounded font-mono font-bold"></span>
+          </div>
         </div>
         <button onclick="closeEditModulesModal()" class="text-slate-400 hover:text-white text-lg">✕</button>
       </div>
@@ -1019,9 +1022,14 @@ app.get('/', (req, res) => {
           <div id="em-modules-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-2 bg-slate-950 p-3 rounded-xl border border-slate-800 max-h-56 overflow-y-auto custom-scroll"></div>
         </div>
 
-        <button type="submit" class="w-full bg-gradient-to-r from-sky-600 to-emerald-600 hover:from-sky-500 hover:to-emerald-500 text-white font-bold p-3.5 rounded-xl shadow-lg transition">
-          💾 Guardar Permisos y Sincronizar Inmediatamente
-        </button>
+        <div class="pt-2 border-t border-slate-800 flex flex-col sm:flex-row gap-2">
+          <button type="submit" class="flex-1 bg-gradient-to-r from-sky-600 to-emerald-600 hover:from-sky-500 hover:to-emerald-500 text-white font-bold p-3.5 rounded-xl shadow-lg transition">
+            💾 Guardar Permisos y Sincronizar
+          </button>
+          <button type="button" onclick="deleteCurrentTenantFromModal()" class="bg-rose-950 hover:bg-rose-800 text-rose-300 hover:text-white border border-rose-800 text-xs font-bold px-4 py-3.5 rounded-xl transition flex items-center justify-center gap-1.5">
+            🗑️ Eliminar Supermercado
+          </button>
+        </div>
       </form>
     </div>
   </div>
@@ -1200,12 +1208,12 @@ app.get('/', (req, res) => {
             '<td class="py-3 px-4 font-mono text-[11px] text-slate-300">',
             '  ' + (t.nextDueDate ? new Date(t.nextDueDate).toLocaleDateString() : 'N/A'),
             '</td>',
-            '<td class="py-3 px-4 text-right space-x-1">',
+            '<td class="py-3 px-4 text-right space-x-1.5">',
             '  <button onclick="openEditModulesModal(\'' + t.id + '\')" title="Editar Módulos y Límites" class="bg-indigo-600/30 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-500/40 text-[10px] font-bold px-2 py-1 rounded-lg transition">✏️ Módulos</button>',
             '  <button onclick="copyPayLink(\'' + payLink + '\')" title="Copiar Enlace de Pago" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-bold px-2 py-1 rounded-lg transition">🔗 Link</button>',
             '  <button onclick="sendWhatsappBill(\'' + (t.name || '').replace(/'/g, "") + '\', \'' + (t.contactPhone || '') + '\', \'' + (t.monthlyPrice || 60) + '\', \'' + (((t.monthlyPrice || 60)*bcv).toFixed(2)) + '\', \'' + payLink + '\')" title="Enviar Cobro por WhatsApp" class="bg-emerald-600/30 hover:bg-emerald-600 text-emerald-300 hover:text-white text-[10px] font-bold px-2 py-1 rounded-lg transition">📲 WA</button>',
-            '  <button onclick="toggleTenant(\'' + t.id + '\', \'' + (t.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE') + '\')" title="Bloqueo / Desbloqueo Remoto" class="' + (t.status === 'ACTIVE' ? 'bg-rose-600/20 hover:bg-rose-600 text-rose-300' : 'bg-emerald-600/20 hover:bg-emerald-600 text-emerald-300') + ' border border-slate-700 text-[10px] font-bold px-2 py-1 rounded-lg transition">' + (t.status === 'ACTIVE' ? '🚫 Kill' : '🔓 Activar') + '</button>',
-            '  <button onclick="deleteTenant(\'' + t.id + '\', \'' + (t.name || '').replace(/'/g, "") + '\')" title="Eliminar Supermercado" class="bg-red-900/40 hover:bg-red-700 text-rose-300 hover:text-white border border-rose-800 text-[10px] font-bold px-2 py-1 rounded-lg transition">🗑️</button>',
+            '  <button onclick="toggleTenant(\'' + t.id + '\', \'' + (t.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE') + '\')" title="Bloqueo / Desbloqueo Remoto" class="' + (t.status === 'ACTIVE' ? 'bg-amber-600/20 hover:bg-amber-600 text-amber-300' : 'bg-emerald-600/20 hover:bg-emerald-600 text-emerald-300') + ' border border-slate-700 text-[10px] font-bold px-2 py-1 rounded-lg transition">' + (t.status === 'ACTIVE' ? '🚫 Kill' : '🔓 Activar') + '</button>',
+            '  <button onclick="deleteTenant(\'' + t.id + '\', \'' + (t.name || '').replace(/'/g, "") + '\')" title="Eliminar Supermercado" class="bg-rose-950 hover:bg-rose-800 text-rose-300 hover:text-white border border-rose-800 text-[10px] font-bold px-2.5 py-1 rounded-lg transition">🗑️ Eliminar</button>',
             '</td>'
           ].join('');
           tbody.appendChild(tr);
@@ -1236,6 +1244,16 @@ app.get('/', (req, res) => {
       }
     }
 
+    function deleteCurrentTenantFromModal() {
+      var tenantId = document.getElementById('em-tenant-id').value;
+      var name = document.getElementById('em-name').value;
+      if (!tenantId) return;
+      if (confirm('⚠️ ¿Estás completamente seguro de que deseas eliminar permanentemente a "' + name + '" (ID: ' + tenantId + ')?\\n\\nEsta acción no se puede deshacer.')) {
+        closeEditModulesModal();
+        deleteTenant(tenantId, name);
+      }
+    }
+
     function openEditModulesModal(tenantId) {
       var tenant = rawTenants.find(function(t) { return t.id === tenantId; });
       if (!tenant) return;
@@ -1248,6 +1266,7 @@ app.get('/', (req, res) => {
       document.getElementById('em-max-users').value = tenant.maxUsers || 10;
       document.getElementById('em-max-workstations').value = tenant.maxWorkstations || 4;
       document.getElementById('em-company-subtitle').innerText = tenant.name + ' (' + tenant.rif + ')';
+      document.getElementById('em-tenant-id-badge').innerText = 'ID: ' + tenant.id;
 
       var currentEnabled = Array.isArray(tenant.enabledModules) ? tenant.enabledModules : availableModules.map(function(m) { return m.id; });
       var grid = document.getElementById('em-modules-grid');
