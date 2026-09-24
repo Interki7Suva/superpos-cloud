@@ -738,16 +738,16 @@ app.get('/', (req, res) => {
         <h1 class="text-xl font-black text-white">SuperPOS Master Cloud</h1>
         <p class="text-xs text-slate-400 mt-1">Acceso Exclusivo y Restringido para SuperAdministrador</p>
       </div>
-      <form onsubmit="handleSuperAdminLogin(event)" class="space-y-4 text-left">
+      <div class="space-y-4 text-left">
         <div>
           <label class="text-[11px] font-bold uppercase text-slate-400 block mb-1">Clave Maestra de Seguridad:</label>
-          <input type="password" id="admin-pass-input" required placeholder="••••••••••••" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm text-white font-mono focus:border-sky-500 focus:outline-none" />
+          <input type="password" id="admin-pass-input" onkeydown="if(event.key==='Enter'){event.preventDefault();handleSuperAdminLogin();}" placeholder="••••••••••••" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm text-white font-mono focus:border-sky-500 focus:outline-none" />
         </div>
         <div id="login-err-msg" class="text-xs text-rose-400 font-bold hidden bg-rose-950/40 p-2.5 rounded-xl border border-rose-800"></div>
-        <button type="submit" id="btn-login" class="w-full bg-gradient-to-r from-sky-600 to-emerald-600 hover:from-sky-500 hover:to-emerald-500 text-white font-bold p-3.5 rounded-xl text-xs sm:text-sm transition shadow-lg shadow-sky-600/30">
+        <button type="button" id="btn-login" onclick="handleSuperAdminLogin()" class="w-full bg-gradient-to-r from-sky-600 to-emerald-600 hover:from-sky-500 hover:to-emerald-500 text-white font-bold p-3.5 rounded-xl text-xs sm:text-sm transition shadow-lg shadow-sky-600/30">
           🔐 Desbloquear Panel SaaS
         </button>
-      </form>
+      </div>
       <div class="text-[11px] text-slate-500 font-mono">
         Protección Criptográfica SHA-256 • Servidor Central
       </div>
@@ -1067,13 +1067,16 @@ app.get('/', (req, res) => {
     }
 
     async function handleSuperAdminLogin(e) {
-      e.preventDefault();
-      var pass = (document.getElementById('admin-pass-input').value || '').trim();
+      if (e && e.preventDefault) e.preventDefault();
+      var inputElem = document.getElementById('admin-pass-input');
+      var pass = inputElem ? inputElem.value.trim() : '';
       var btn = document.getElementById('btn-login');
       var errDiv = document.getElementById('login-err-msg');
-      errDiv.classList.add('hidden');
-      btn.disabled = true;
-      btn.innerText = 'Verificando credenciales...';
+      if (errDiv) errDiv.classList.add('hidden');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerText = 'Verificando credenciales...';
+      }
 
       try {
         var res = await fetch('/api/cloud/admin/login', {
@@ -1083,18 +1086,27 @@ app.get('/', (req, res) => {
         });
         var data = await res.json();
         if (data.success && data.token) {
-          sessionStorage.setItem('superpos_admin_token', data.token);
-          checkAdminAuth();
+          try { sessionStorage.setItem('superpos_admin_token', data.token); } catch(err){}
+          document.getElementById('login-gate').classList.add('hidden');
+          document.getElementById('main-dashboard').classList.remove('hidden');
+          loadTenants();
+          loadPayments();
         } else {
-          errDiv.innerText = '❌ ' + (data.error || 'Clave maestra inválida');
-          errDiv.classList.remove('hidden');
+          if (errDiv) {
+            errDiv.innerText = '❌ ' + (data.error || 'Clave maestra inválida');
+            errDiv.classList.remove('hidden');
+          }
         }
       } catch (err) {
-        errDiv.innerText = '❌ Error al comunicarse con el servidor';
-        errDiv.classList.remove('hidden');
+        if (errDiv) {
+          errDiv.innerText = '❌ Error de conexión: ' + (err.message || 'Error al conectar');
+          errDiv.classList.remove('hidden');
+        }
       } finally {
-        btn.disabled = false;
-        btn.innerText = '🔐 Desbloquear Panel SaaS';
+        if (btn) {
+          btn.disabled = false;
+          btn.innerText = '🔐 Desbloquear Panel SaaS';
+        }
       }
     }
 
