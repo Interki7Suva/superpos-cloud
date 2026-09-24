@@ -1,36 +1,28 @@
 /**
  * ==============================================================================
- * SUPERPOS MASTER CLOUD SAAS - SERVER.JS (EDICIÓN AVANZADA DE PERMISOS Y MÓDULOS)
- * Servidor Central: Render & Hetzner Cloud
- * 
- * Funcionalidades Principales:
- *  1. Gestión Total de Supermercados: Datos, Contacto, Vencimiento y Plan
- *  2. Control Granular de Permisos de Módulos (POS, Inventario, Balanzas, IA/ML, etc.)
- *  3. Límites de Capacidad: Cantidad Máxima de Usuarios y Estaciones de Trabajo
- *  4. Sincronización Automática Diaria con el Portal Oficial del BCV (bcv.org.ve)
- *  5. Carga directa de imagen QR de Binance Pay (Base64) - Sin URLs externas
- *  6. Kill-Switch remoto, Bóveda de Respaldos y Tokens Criptográficos Offline
- *  7. Portal Público de Pagos (/pay/:tenantId) con Tasa BCV en vivo y QR Binance
+ * SUPERPOS MASTER CLOUD SAAS - SERVER.JS (COMPATIBLE CON EXPRESS / RENDER)
  * ==============================================================================
  */
 
-const fastify = require('fastify')({ logger: true, bodyLimit: 20 * 1024 * 1024 });
+const express = require('express');
+const cors = require('cors');
+const bodyParser = require('body-parser');
 const fs = require('fs');
 const path = require('path');
 const https = require('https');
 const crypto = require('crypto');
 
-fastify.register(require('@fastify/cors'), { origin: '*', methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'] });
-fastify.register(require('@fastify/multipart'), { limits: { fileSize: 100 * 1024 * 1024 } });
+const app = express();
+app.use(cors());
+app.use(bodyParser.json({ limit: '25mb' }));
+app.use(bodyParser.urlencoded({ limit: '25mb', extended: true }));
 
 const DATA_DIR = path.join(__dirname, 'data');
-const BACKUPS_VAULT = path.join(DATA_DIR, 'backups_vault');
 const TENANTS_FILE = path.join(DATA_DIR, 'tenants_master.json');
 const CONFIG_FILE = path.join(DATA_DIR, 'system_config.json');
 const PAYMENTS_FILE = path.join(DATA_DIR, 'payments_master.json');
 
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-if (!fs.existsSync(BACKUPS_VAULT)) fs.mkdirSync(BACKUPS_VAULT, { recursive: true });
 
 function readJson(f, fallback = []) {
   try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch (e) { return fallback; }
@@ -85,20 +77,7 @@ if (!fs.existsSync(TENANTS_FILE)) {
       status: 'ACTIVE',
       maxUsers: 10,
       maxWorkstations: 4,
-      enabledModules: [
-        'pos',
-        'inventory',
-        'scales',
-        'purchases_ml',
-        'quotations',
-        'shelf_labels',
-        'promotions_combos',
-        'fiscal_reports',
-        'delivery_notes',
-        'pagomovil_c2p',
-        'loss_prevention',
-        'cloud_backups'
-      ],
+      enabledModules: ALL_AVAILABLE_MODULES.map(m => m.id),
       lastHeartbeat: new Date().toISOString(),
       nextDueDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString(),
       contactName: 'Gerencia General',
@@ -205,7 +184,6 @@ async function syncAndSaveBcvRate() {
   return result;
 }
 
-// Sincronizar en arranque y programar cada hora
 syncAndSaveBcvRate();
 setInterval(() => {
   const now = new Date();
@@ -216,26 +194,26 @@ setInterval(() => {
 }, 60 * 60 * 1000);
 
 // ==============================================================================
-// 2. ENDPOINTS DE TASA BCV & CONFIGURACIÓN
+// 2. ENDPOINTS API
 // ==============================================================================
-fastify.get('/api/cloud/bcv-rate', async () => {
+app.get('/api/cloud/bcv-rate', (req, res) => {
   const cfg = readJson(CONFIG_FILE, {});
-  return {
+  res.json({
     rate: cfg.bcvRate || 854.4637,
     lastUpdated: cfg.bcvLastUpdated,
     source: cfg.bcvSource || 'bcv.org.ve',
     currency: 'VES/USD'
-  };
+  });
 });
 
-fastify.post('/api/cloud/bcv-rate/sync-now', async () => {
-  const res = await syncAndSaveBcvRate();
-  return { success: true, ...res };
+app.post('/api/cloud/bcv-rate/sync-now', async (req, res) => {
+  const result = await syncAndSaveBcvRate();
+  res.json({ success: true, ...result });
 });
 
-fastify.get('/api/cloud/system-config', async () => {
+app.get('/api/cloud/system-config', (req, res) => {
   const cfg = readJson(CONFIG_FILE, {});
-  return {
+  res.json({
     pagoMovilBank: cfg.pagoMovilBank,
     pagoMovilPhone: cfg.pagoMovilPhone,
     pagoMovilRif: cfg.pagoMovilRif,
@@ -246,11 +224,11 @@ fastify.get('/api/cloud/system-config', async () => {
     bcvRate: cfg.bcvRate,
     bcvLastUpdated: cfg.bcvLastUpdated,
     availableModules: ALL_AVAILABLE_MODULES
-  };
+  });
 });
 
-fastify.post('/api/cloud/admin/update-config', async (request) => {
-  const body = request.body || {};
+app.post('/api/cloud/admin/update-config', (req, res) => {
+  const body = req.body || {};
   const cfg = readJson(CONFIG_FILE, {});
   
   if (body.pagoMovilBank) cfg.pagoMovilBank = body.pagoMovilBank;
@@ -263,14 +241,12 @@ fastify.post('/api/cloud/admin/update-config', async (request) => {
   if (body.bcvRate) cfg.bcvRate = Number(body.bcvRate);
 
   writeJson(CONFIG_FILE, cfg);
-  return { success: true, message: 'Configuración actualizada exitosamente', config: cfg };
+  res.json({ success: true, message: 'Configuración actualizada exitosamente', config: cfg });
 });
 
-// ==============================================================================
-// 3. LICENCIAMIENTO & HEARTBEAT (SUPERPOS CLIENTE -> CLOUD)
-// ==============================================================================
-fastify.post('/api/cloud/license/heartbeat', async (request) => {
-  const { tenantId, machineFingerprint, localVersion } = request.body || {};
+// Heartbeat
+app.post('/api/cloud/license/heartbeat', (req, res) => {
+  const { tenantId, machineFingerprint, localVersion } = req.body || {};
   let tenants = readJson(TENANTS_FILE, []);
   let tenant = tenants.find(t => t.id === tenantId);
   const cfg = readJson(CONFIG_FILE, {});
@@ -302,7 +278,7 @@ fastify.post('/api/cloud/license/heartbeat', async (request) => {
   writeJson(TENANTS_FILE, tenants);
 
   const isActive = tenant.status === 'ACTIVE';
-  return {
+  res.json({
     valid: isActive,
     status: tenant.status,
     tenantId: tenant.id,
@@ -316,18 +292,16 @@ fastify.post('/api/cloud/license/heartbeat', async (request) => {
     bcvRate: cfg.bcvRate,
     serverTime: new Date().toISOString(),
     message: isActive ? 'Licencia activa y autorizada' : 'Acceso suspendido por administración'
-  };
+  });
 });
 
-// ==============================================================================
-// 4. GESTIÓN TOTAL DE SUPERMERCADOS, PERMISOS Y MÓDULOS
-// ==============================================================================
-fastify.get('/api/cloud/admin/tenants', async () => {
-  return readJson(TENANTS_FILE, []);
+// Tenants API
+app.get('/api/cloud/admin/tenants', (req, res) => {
+  res.json(readJson(TENANTS_FILE, []));
 });
 
-fastify.post('/api/cloud/admin/tenants', async (request) => {
-  const body = request.body || {};
+app.post('/api/cloud/admin/tenants', (req, res) => {
+  const body = req.body || {};
   let tenants = readJson(TENANTS_FILE, []);
 
   const defaultModules = body.enabledModules && Array.isArray(body.enabledModules) && body.enabledModules.length > 0
@@ -355,14 +329,14 @@ fastify.post('/api/cloud/admin/tenants', async (request) => {
 
   tenants.push(newTenant);
   writeJson(TENANTS_FILE, tenants);
-  return { success: true, tenant: newTenant };
+  res.json({ success: true, tenant: newTenant });
 });
 
-fastify.post('/api/cloud/admin/update-tenant', async (request, reply) => {
-  const body = request.body || {};
+app.post('/api/cloud/admin/update-tenant', (req, res) => {
+  const body = req.body || {};
   let tenants = readJson(TENANTS_FILE, []);
   const idx = tenants.findIndex(t => t.id === body.id);
-  if (idx === -1) return reply.status(404).send({ error: 'Supermercado no encontrado' });
+  if (idx === -1) return res.status(404).json({ error: 'Supermercado no encontrado' });
 
   if (body.name) tenants[idx].name = body.name;
   if (body.rif) tenants[idx].rif = body.rif;
@@ -378,33 +352,33 @@ fastify.post('/api/cloud/admin/update-tenant', async (request, reply) => {
   if (Array.isArray(body.enabledModules)) tenants[idx].enabledModules = body.enabledModules;
 
   writeJson(TENANTS_FILE, tenants);
-  return { success: true, message: 'Supermercado y permisos de módulos actualizados exitosamente', tenant: tenants[idx] };
+  res.json({ success: true, message: 'Supermercado y permisos de módulos actualizados exitosamente', tenant: tenants[idx] });
 });
 
-fastify.post('/api/cloud/admin/toggle-status', async (request, reply) => {
-  const { tenantId, status } = request.body || {};
+app.post('/api/cloud/admin/toggle-status', (req, res) => {
+  const { tenantId, status } = req.body || {};
   let tenants = readJson(TENANTS_FILE, []);
   const idx = tenants.findIndex(t => t.id === tenantId);
-  if (idx === -1) return reply.status(404).send({ error: 'Cliente no encontrado' });
+  if (idx === -1) return res.status(404).json({ error: 'Cliente no encontrado' });
 
   tenants[idx].status = status;
   writeJson(TENANTS_FILE, tenants);
-  return { success: true, tenant: tenants[idx] };
+  res.json({ success: true, tenant: tenants[idx] });
 });
 
-fastify.post('/api/cloud/admin/delete-tenant', async (request, reply) => {
-  const { tenantId } = request.body || {};
+app.post('/api/cloud/admin/delete-tenant', (req, res) => {
+  const { tenantId } = req.body || {};
   let tenants = readJson(TENANTS_FILE, []);
   tenants = tenants.filter(t => t.id !== tenantId);
   writeJson(TENANTS_FILE, tenants);
-  return { success: true, message: 'Supermercado eliminado de la base de datos' };
+  res.json({ success: true, message: 'Supermercado eliminado de la base de datos' });
 });
 
-fastify.post('/api/cloud/admin/generate-offline-token', async (request, reply) => {
-  const { tenantId, days = 30 } = request.body || {};
+app.post('/api/cloud/admin/generate-offline-token', (req, res) => {
+  const { tenantId, days = 30 } = req.body || {};
   const tenants = readJson(TENANTS_FILE, []);
   const tenant = tenants.find(t => t.id === tenantId);
-  if (!tenant) return reply.status(404).send({ error: 'Cliente no encontrado' });
+  if (!tenant) return res.status(404).json({ error: 'Cliente no encontrado' });
 
   const payload = {
     tenantId: tenant.id,
@@ -422,14 +396,12 @@ fastify.post('/api/cloud/admin/generate-offline-token', async (request, reply) =
   const signature = crypto.createHmac('sha256', secret).update(dataString).digest('hex');
   const token = `SPPOS-${dataString}.${signature}`;
 
-  return { success: true, token, expiresAt: payload.validUntil };
+  res.json({ success: true, token, expiresAt: payload.validUntil });
 });
 
-// ==============================================================================
-// 5. REPORTES DE PAGO & VALIDACIÓN
-// ==============================================================================
-fastify.post('/api/cloud/tenant/report-payment', async (request) => {
-  const body = request.body || {};
+// Payments
+app.post('/api/cloud/tenant/report-payment', (req, res) => {
+  const body = req.body || {};
   let payments = readJson(PAYMENTS_FILE, []);
 
   const newPayment = {
@@ -447,18 +419,18 @@ fastify.post('/api/cloud/tenant/report-payment', async (request) => {
 
   payments.push(newPayment);
   writeJson(PAYMENTS_FILE, payments);
-  return { success: true, message: 'Pago reportado correctamente. El administrador validará su transacción.', payment: newPayment };
+  res.json({ success: true, message: 'Pago reportado correctamente. El administrador validará su transacción.', payment: newPayment });
 });
 
-fastify.get('/api/cloud/admin/payments', async () => {
-  return readJson(PAYMENTS_FILE, []);
+app.get('/api/cloud/admin/payments', (req, res) => {
+  res.json(readJson(PAYMENTS_FILE, []));
 });
 
-fastify.post('/api/cloud/admin/approve-payment', async (request, reply) => {
-  const { paymentId } = request.body || {};
+app.post('/api/cloud/admin/approve-payment', (req, res) => {
+  const { paymentId } = req.body || {};
   let payments = readJson(PAYMENTS_FILE, []);
   const pIdx = payments.findIndex(p => p.id === paymentId);
-  if (pIdx === -1) return reply.status(404).send({ error: 'Pago no encontrado' });
+  if (pIdx === -1) return res.status(404).json({ error: 'Pago no encontrado' });
 
   payments[pIdx].status = 'APPROVED';
   payments[pIdx].approvedAt = new Date().toISOString();
@@ -474,20 +446,20 @@ fastify.post('/api/cloud/admin/approve-payment', async (request, reply) => {
     writeJson(TENANTS_FILE, tenants);
   }
 
-  return { success: true, message: 'Pago aprobado y suscripción renovada por 30 días.' };
+  res.json({ success: true, message: 'Pago aprobado y suscripción renovada por 30 días.' });
 });
 
 // ==============================================================================
-// 6. PORTAL PÚBLICO DE PAGO PARA CLIENTES (/pay/:tenantId)
+// 3. PORTAL PÚBLICO DE PAGO (/pay/:tenantId)
 // ==============================================================================
-fastify.get('/pay/:tenantId', async (request, reply) => {
-  const { tenantId } = request.params;
+app.get('/pay/:tenantId', (req, res) => {
+  const { tenantId } = req.params;
   const tenants = readJson(TENANTS_FILE, []);
   const tenant = tenants.find(t => t.id === tenantId);
   const cfg = readJson(CONFIG_FILE, {});
 
   if (!tenant) {
-    return reply.type('text/html').send(`
+    return res.status(404).send(`
       <div style="font-family: sans-serif; text-align: center; padding: 50px; background: #0f172a; color: white; min-height: 100vh;">
         <h2>❌ Enlace de Pago no válido o Supermercado no encontrado</h2>
         <p style="color: #94a3b8;">Por favor contacte a soporte técnico para obtener su enlace de facturación actualizado.</p>
@@ -499,7 +471,7 @@ fastify.get('/pay/:tenantId', async (request, reply) => {
   const amountUsd = tenant.monthlyPrice || 60;
   const amountVes = (amountUsd * bcvRate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-  reply.type('text/html').send(`
+  res.send(`
 <!DOCTYPE html>
 <html lang="es" class="dark">
 <head>
@@ -729,13 +701,13 @@ fastify.get('/pay/:tenantId', async (request, reply) => {
 });
 
 // ==============================================================================
-// 7. DASHBOARD SUPERADMIN (/ - PANEL COMPLETO CON EDITOR DE MÓDULOS)
+// 4. DASHBOARD SUPERADMIN (/)
 // ==============================================================================
-fastify.get('/', async (request, reply) => {
+app.get('/', (req, res) => {
   const cfg = readJson(CONFIG_FILE, {});
   const bcvRate = cfg.bcvRate || 854.4637;
 
-  reply.type('text/html').send(`
+  res.send(`
 <!DOCTYPE html>
 <html lang="es" class="dark">
 <head>
@@ -1521,12 +1493,6 @@ fastify.get('/', async (request, reply) => {
 });
 
 const PORT = process.env.PORT || 4000;
-const HOST = '0.0.0.0';
-
-fastify.listen({ port: PORT, host: HOST }, (err, address) => {
-  if (err) {
-    console.error(err);
-    process.exit(1);
-  }
-  console.log(`[SuperPOS Cloud Master] Servidor operativo en ${address}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`[SuperPOS Cloud Master] Servidor operativo en puerto ${PORT}`);
 });
