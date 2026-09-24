@@ -1,6 +1,8 @@
 /**
  * ==============================================================================
- * SUPERPOS MASTER CLOUD SAAS - SERVER.JS (COMPATIBLE CON EXPRESS / RENDER)
+ * SUPERPOS MASTER CLOUD SAAS - SERVER.JS (100% RESPONSIVE & MOBILE-FIRST)
+ * Servidor Central: Render & Hetzner Cloud
+ * Compatible con Express, Cors, Body-Parser
  * ==============================================================================
  */
 
@@ -33,17 +35,17 @@ function writeJson(f, d) {
 
 // Lista oficial de módulos del ecosistema SuperPOS
 const ALL_AVAILABLE_MODULES = [
-  { id: 'pos', name: 'Punto de Venta (POS & Facturación)', icon: '🛒', desc: 'Venta rápida, códigos de barra, multi-moneda y cobro' },
+  { id: 'pos', name: 'Punto de Venta (POS & Facturación)', icon: '🛒', desc: 'Venta rápida, códigos de barra, bimoneda y cobro' },
   { id: 'inventory', name: 'Control de Inventarios & Almacén', icon: '📦', desc: 'Stock mínimo, kardex, lotes, vencimientos y traslados' },
   { id: 'scales', name: 'Balanzas & Códigos Pesables', icon: '⚖️', desc: 'Charcutería, carnicería, verduras y prefijo 20' },
   { id: 'purchases_ml', name: 'Compras & Sugerencias IA/ML', icon: '🤖', desc: 'Órdenes de compra y predicción de agotamiento' },
-  { id: 'quotations', name: 'Presupuestos & Proformas', icon: '📋', desc: 'Emisión de cotizaciones congelando precios y conversión' },
+  { id: 'quotations', name: 'Presupuestos & Proformas', icon: '📋', desc: 'Emisión de cotizaciones congelando precios y tasa' },
   { id: 'shelf_labels', name: 'Habladores & Etiquetas QR', icon: '🏷️', desc: 'Impresión de precios bimoneda y código QR para anaqueles' },
-  { id: 'promotions_combos', name: 'Promociones & Combos 2x1', icon: '🎁', desc: 'Reglas de descuento por volumen, días especiales y combos' },
-  { id: 'fiscal_reports', name: 'Reportes Fiscales SENIAT', icon: '🏛️', desc: 'Reportes Z, Libro de Ventas y auditoría de impresoras fiscales' },
+  { id: 'promotions_combos', name: 'Promociones & Combos 2x1', icon: '🎁', desc: 'Reglas de descuento por volumen, combos y ofertas' },
+  { id: 'fiscal_reports', name: 'Reportes Fiscales SENIAT', icon: '🏛️', desc: 'Reportes Z, Libro de Ventas y auditoría de impresoras' },
   { id: 'delivery_notes', name: 'Notas de Entrega & Guías', icon: '🚚', desc: 'Despacho de mercancía con numeración correlativa' },
   { id: 'pagomovil_c2p', name: 'Pasarela Pago Móvil C2P & Fintech', icon: '📱', desc: 'Validación en vivo BDV y cuotas Cashea' },
-  { id: 'loss_prevention', name: 'Auditoría & Prevención de Mermas', icon: '🛡️', desc: 'Detección de mermas, anulaciones y transacciones sospechosas' },
+  { id: 'loss_prevention', name: 'Auditoría & Prevención de Mermas', icon: '🛡️', desc: 'Detección de mermas, anulaciones y sospechas' },
   { id: 'cloud_backups', name: 'Bóveda de Respaldos Cloud', icon: '☁️', desc: 'Copia de seguridad encriptada en el servidor central' }
 ];
 
@@ -450,7 +452,7 @@ app.post('/api/cloud/admin/approve-payment', (req, res) => {
 });
 
 // ==============================================================================
-// 3. PORTAL PÚBLICO DE PAGO (/pay/:tenantId)
+// 3. PORTAL PÚBLICO DE PAGO (/pay/:tenantId) - 100% RESPONSIVE
 // ==============================================================================
 app.get('/pay/:tenantId', (req, res) => {
   const { tenantId } = req.params;
@@ -460,9 +462,9 @@ app.get('/pay/:tenantId', (req, res) => {
 
   if (!tenant) {
     return res.status(404).send(`
-      <div style="font-family: sans-serif; text-align: center; padding: 50px; background: #0f172a; color: white; min-height: 100vh;">
-        <h2>❌ Enlace de Pago no válido o Supermercado no encontrado</h2>
-        <p style="color: #94a3b8;">Por favor contacte a soporte técnico para obtener su enlace de facturación actualizado.</p>
+      <div style="font-family: sans-serif; text-align: center; padding: 40px 16px; background: #0f172a; color: white; min-height: 100vh;">
+        <h2 style="font-size: 20px;">❌ Enlace de Pago no válido o Supermercado no encontrado</h2>
+        <p style="color: #94a3b8; font-size: 14px; margin-top: 10px;">Por favor contacte a soporte técnico para obtener su enlace de facturación actualizado.</p>
       </div>
     `);
   }
@@ -476,99 +478,98 @@ app.get('/pay/:tenantId', (req, res) => {
 <html lang="es" class="dark">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Portal de Pago — SuperPOS Cloud (${tenant.name})</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>body { font-family: 'Plus Jakarta Sans', sans-serif; }</style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col justify-between">
-  <header class="border-b border-slate-800 bg-slate-900/90 py-4 px-6 sticky top-0 z-40 backdrop-blur">
-    <div class="max-w-4xl mx-auto flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-500 to-emerald-500 flex items-center justify-center font-black text-xl shadow-lg">⚡</div>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col justify-between selection:bg-sky-500 selection:text-white">
+  <header class="border-b border-slate-800 bg-slate-900/90 py-3.5 px-4 sm:px-6 sticky top-0 z-40 backdrop-blur">
+    <div class="max-w-4xl mx-auto flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-sky-500 to-emerald-500 flex items-center justify-center font-black text-lg shadow-lg">⚡</div>
         <div>
-          <span class="font-bold text-white text-lg">SuperPOS <span class="text-sky-400">Portal de Facturación</span></span>
-          <span class="block text-[11px] text-slate-400 font-mono">Licencia Oficial SaaS Venezuela</span>
+          <span class="font-bold text-white text-base sm:text-lg block leading-tight">SuperPOS <span class="text-sky-400">Portal de Pago</span></span>
+          <span class="text-[10px] sm:text-[11px] text-slate-400 font-mono">Licencia Oficial SaaS Venezuela</span>
         </div>
       </div>
       <div class="text-right">
-        <span class="text-xs bg-emerald-950 text-emerald-400 border border-emerald-800/80 px-3 py-1 rounded-full font-bold">
-          🇻🇪 BCV Oficial: ${bcvRate} Bs/$
+        <span class="text-[11px] sm:text-xs bg-emerald-950/80 text-emerald-400 border border-emerald-800/80 px-3 py-1 rounded-full font-bold">
+          🇻🇪 BCV: ${bcvRate} Bs/$
         </span>
       </div>
     </div>
   </header>
 
-  <main class="max-w-4xl mx-auto px-4 py-8 w-full space-y-6">
-    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl relative overflow-hidden">
-      <div class="absolute -right-10 -bottom-10 w-48 h-48 bg-sky-500/10 rounded-full blur-3xl pointer-events-none"></div>
-      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-800 pb-6">
+  <main class="max-w-4xl mx-auto px-3 sm:px-4 py-6 w-full space-y-5">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-2xl relative overflow-hidden">
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-800 pb-5">
         <div>
-          <span class="text-xs font-bold text-sky-400 uppercase tracking-wider">Cliente Suscrito</span>
-          <h1 class="text-2xl font-black text-white mt-1">${tenant.name}</h1>
-          <p class="text-xs text-slate-400 font-mono">RIF: ${tenant.rif} | Plan: <span class="text-amber-400 font-bold">${tenant.plan}</span></p>
+          <span class="text-[10px] sm:text-xs font-bold text-sky-400 uppercase tracking-wider">Cliente Suscrito</span>
+          <h1 class="text-xl sm:text-2xl font-black text-white mt-0.5 break-words">${tenant.name}</h1>
+          <p class="text-xs text-slate-400 font-mono mt-0.5">RIF: ${tenant.rif} • Plan: <span class="text-amber-400 font-bold">${tenant.plan}</span></p>
         </div>
-        <div class="text-right bg-slate-950 border border-slate-800 p-4 rounded-2xl">
-          <div class="text-xs text-slate-400">Total a Pagar (Canon Mensual)</div>
-          <div class="text-3xl font-black text-emerald-400 mt-1">$${amountUsd}.00 <span class="text-xs text-slate-400">USD</span></div>
-          <div class="text-sm font-bold text-sky-300 mt-0.5">Bs. ${amountVes} <span class="text-[10px] text-slate-400">a Tasa BCV</span></div>
+        <div class="w-full sm:w-auto text-left sm:text-right bg-slate-950 border border-slate-800 p-3.5 sm:p-4 rounded-xl sm:rounded-2xl">
+          <div class="text-[11px] text-slate-400">Total a Pagar (Canon Mensual)</div>
+          <div class="text-2xl sm:text-3xl font-black text-emerald-400 mt-0.5">$${amountUsd}.00 <span class="text-xs text-slate-400">USD</span></div>
+          <div class="text-xs sm:text-sm font-bold text-sky-300 mt-0.5">Bs. ${amountVes} <span class="text-[10px] text-slate-400">a Tasa BCV</span></div>
         </div>
       </div>
 
-      <div class="mt-6">
-        <div class="flex gap-2 border-b border-slate-800 pb-3">
-          <button onclick="switchTab('pm')" id="tab-pm-btn" class="px-4 py-2 rounded-xl font-bold text-xs bg-sky-600 text-white transition flex items-center gap-2">
-            📱 Pago Móvil (BDV / Todos los Bancos)
+      <div class="mt-5">
+        <div class="grid grid-cols-2 gap-2 border-b border-slate-800 pb-3">
+          <button onclick="switchTab('pm')" id="tab-pm-btn" class="py-2.5 px-3 rounded-xl font-bold text-xs bg-sky-600 text-white transition flex items-center justify-center gap-1.5 text-center">
+            📱 <span class="truncate">Pago Móvil</span>
           </button>
-          <button onclick="switchTab('binance')" id="tab-binance-btn" class="px-4 py-2 rounded-xl font-bold text-xs bg-slate-800 text-slate-400 hover:text-white transition flex items-center gap-2">
-            🟡 Binance Pay (QR & ID)
+          <button onclick="switchTab('binance')" id="tab-binance-btn" class="py-2.5 px-3 rounded-xl font-bold text-xs bg-slate-800 text-slate-400 hover:text-white transition flex items-center justify-center gap-1.5 text-center">
+            🟡 <span class="truncate">Binance Pay (QR)</span>
           </button>
         </div>
 
-        <div id="tab-pm" class="pt-6 space-y-4">
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800">
-              <span class="text-slate-400 text-xs block">Banco Receptor</span>
-              <strong class="text-white text-sm block mt-1">${cfg.pagoMovilBank || 'Banco de Venezuela (0102)'}</strong>
+        <div id="tab-pm" class="pt-4 space-y-3">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div class="bg-slate-950 p-3.5 rounded-xl border border-slate-800">
+              <span class="text-slate-400 text-[11px] block">Banco Receptor</span>
+              <strong class="text-white text-xs sm:text-sm block mt-0.5">${cfg.pagoMovilBank || 'Banco de Venezuela (0102)'}</strong>
             </div>
-            <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800">
-              <span class="text-slate-400 text-xs block">Teléfono Registrado</span>
-              <strong class="text-sky-400 text-base font-mono block mt-1">${cfg.pagoMovilPhone || '0414-2329011'}</strong>
+            <div class="bg-slate-950 p-3.5 rounded-xl border border-slate-800">
+              <span class="text-slate-400 text-[11px] block">Teléfono Registrado</span>
+              <strong class="text-sky-400 text-sm sm:text-base font-mono block mt-0.5">${cfg.pagoMovilPhone || '0414-2329011'}</strong>
             </div>
-            <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800">
-              <span class="text-slate-400 text-xs block">C.I. / RIF del Beneficiario</span>
-              <strong class="text-emerald-400 text-base font-mono block mt-1">${cfg.pagoMovilRif || 'V-26123456-7'}</strong>
+            <div class="bg-slate-950 p-3.5 rounded-xl border border-slate-800">
+              <span class="text-slate-400 text-[11px] block">C.I. / RIF del Beneficiario</span>
+              <strong class="text-emerald-400 text-sm sm:text-base font-mono block mt-0.5">${cfg.pagoMovilRif || 'V-26123456-7'}</strong>
             </div>
           </div>
         </div>
 
-        <div id="tab-binance" class="pt-6 space-y-4 hidden">
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 items-center">
-            <div class="text-center bg-slate-950 p-5 rounded-3xl border border-slate-800">
-              <span class="text-xs font-bold text-amber-400 block mb-3 uppercase tracking-wider">Escanea con tu App de Binance</span>
+        <div id="tab-binance" class="pt-4 space-y-4 hidden">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+            <div class="text-center bg-slate-950 p-4 rounded-2xl border border-slate-800">
+              <span class="text-xs font-bold text-amber-400 block mb-2 uppercase tracking-wider">Escanea con tu App de Binance</span>
               ${cfg.binanceQrBase64 ? `
-                <img src="${cfg.binanceQrBase64}" alt="Código QR Binance Pay" class="w-56 h-56 mx-auto rounded-2xl border-2 border-amber-500/50 shadow-2xl p-2 bg-white object-contain">
+                <img src="${cfg.binanceQrBase64}" alt="Código QR Binance Pay" class="w-48 h-48 sm:w-56 sm:h-56 mx-auto rounded-xl border-2 border-amber-500/50 shadow-2xl p-2 bg-white object-contain">
               ` : `
-                <div class="w-56 h-56 mx-auto rounded-2xl border-2 border-dashed border-slate-700 flex flex-col items-center justify-center p-4 text-slate-500">
-                  <span class="text-3xl mb-2">📷</span>
-                  <span class="text-xs">QR pendiente de carga por el Administrador</span>
+                <div class="w-48 h-48 sm:w-56 sm:h-56 mx-auto rounded-xl border-2 border-dashed border-slate-700 flex flex-col items-center justify-center p-4 text-slate-500">
+                  <span class="text-3xl mb-1">📷</span>
+                  <span class="text-xs">QR pendiente de carga</span>
                 </div>
               `}
-              <span class="text-[11px] text-slate-400 block mt-3 font-mono">Red recomendada: ${cfg.usdtNetwork || 'USDT / Binance Pay'}</span>
+              <span class="text-[10px] sm:text-[11px] text-slate-400 block mt-2 font-mono">${cfg.usdtNetwork || 'USDT / Binance Pay'}</span>
             </div>
-            <div class="space-y-3">
-              <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800">
-                <span class="text-slate-400 text-xs block">Binance ID (Pay ID)</span>
-                <strong class="text-amber-400 text-lg font-mono block mt-1 select-all">${cfg.binanceId || '849201948'}</strong>
+            <div class="space-y-2.5">
+              <div class="bg-slate-950 p-3.5 rounded-xl border border-slate-800">
+                <span class="text-slate-400 text-[11px] block">Binance ID (Pay ID)</span>
+                <strong class="text-amber-400 text-base sm:text-lg font-mono block mt-0.5 select-all">${cfg.binanceId || '849201948'}</strong>
               </div>
-              <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800">
-                <span class="text-slate-400 text-xs block">Binance Email / Alias</span>
-                <strong class="text-white text-sm font-mono block mt-1 select-all">${cfg.binancePayId || 'superpos@binance'}</strong>
+              <div class="bg-slate-950 p-3.5 rounded-xl border border-slate-800">
+                <span class="text-slate-400 text-[11px] block">Binance Email / Alias</span>
+                <strong class="text-white text-xs sm:text-sm font-mono block mt-0.5 select-all truncate">${cfg.binancePayId || 'superpos@binance'}</strong>
               </div>
-              <div class="bg-slate-950 p-4 rounded-2xl border border-slate-800">
-                <span class="text-slate-400 text-xs block">Monto Exacto USDT</span>
-                <strong class="text-emerald-400 text-xl font-black block mt-1">${amountUsd}.00 USDT</strong>
+              <div class="bg-slate-950 p-3.5 rounded-xl border border-slate-800">
+                <span class="text-slate-400 text-[11px] block">Monto Exacto USDT</span>
+                <strong class="text-emerald-400 text-lg sm:text-xl font-black block mt-0.5">${amountUsd}.00 USDT</strong>
               </div>
             </div>
           </div>
@@ -576,49 +577,49 @@ app.get('/pay/:tenantId', (req, res) => {
       </div>
     </div>
 
-    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-4">
-      <h2 class="text-lg font-bold text-white flex items-center gap-2">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-2xl space-y-4">
+      <h2 class="text-base sm:text-lg font-bold text-white flex items-center gap-2">
         <span>📋</span> Reportar Pago Realizado
       </h2>
-      <form id="reportPaymentForm" onsubmit="submitPayment(event)" class="space-y-4 text-xs">
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <form id="reportPaymentForm" onsubmit="submitPayment(event)" class="space-y-3.5 text-xs">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label class="block text-slate-400 mb-1">Método de Pago Utilizado</label>
-            <select id="p-method" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-white font-medium">
+            <label class="block text-slate-400 mb-1">Método de Pago</label>
+            <select id="p-method" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white font-medium">
               <option value="PAGO_MOVIL">Pago Móvil Interbancario (Bs.)</option>
               <option value="BINANCE_PAY">Binance Pay / USDT</option>
               <option value="BANCO_VES">Transferencia Bancaria Nacional</option>
             </select>
           </div>
           <div>
-            <label class="block text-slate-400 mb-1">Número de Referencia / ID de Transacción</label>
-            <input type="text" id="p-ref" required placeholder="Ej: 00948271 o TxID Binance" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-white font-mono">
+            <label class="block text-slate-400 mb-1">Referencia / ID de Transacción</label>
+            <input type="text" id="p-ref" required placeholder="Ej: 00948271 o TxID Binance" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white font-mono">
           </div>
         </div>
 
         <div>
-          <label class="block text-slate-400 mb-1">Adjuntar Captura o Foto del Comprobante</label>
-          <div class="flex items-center gap-3">
+          <label class="block text-slate-400 mb-1">Captura o Foto del Comprobante</label>
+          <div class="flex flex-wrap items-center gap-2.5">
             <input type="file" id="p-file" accept="image/*" required onchange="handleFileChange(event)" class="hidden">
-            <button type="button" onclick="document.getElementById('p-file').click()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 px-4 py-2.5 rounded-xl font-bold flex items-center gap-2">
-              <span>📎</span> Seleccionar Imagen de Comprobante
+            <button type="button" onclick="document.getElementById('p-file').click()" class="w-full sm:w-auto bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 px-4 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2">
+              <span>📎</span> Subir Comprobante
             </button>
-            <span id="file-name" class="text-slate-500 truncate max-w-xs font-mono">Ningún archivo seleccionado</span>
+            <span id="file-name" class="text-slate-500 text-[11px] truncate max-w-full font-mono">Ningún archivo seleccionado</span>
           </div>
-          <div id="voucher-preview-container" class="mt-3 hidden">
-            <img id="voucher-preview" class="h-36 rounded-xl border border-slate-700 object-contain bg-slate-950 p-1">
+          <div id="voucher-preview-container" class="mt-2.5 hidden">
+            <img id="voucher-preview" class="h-32 sm:h-40 rounded-xl border border-slate-700 object-contain bg-slate-950 p-1">
           </div>
         </div>
 
-        <button type="submit" id="btn-submit-pay" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 rounded-2xl text-white font-bold text-sm shadow-lg shadow-emerald-600/30 transition">
+        <button type="submit" id="btn-submit-pay" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 rounded-xl sm:rounded-2xl text-white font-bold text-xs sm:text-sm shadow-lg shadow-emerald-600/30 transition">
           🚀 Enviar Comprobante para Validación Inmediata
         </button>
       </form>
     </div>
   </main>
 
-  <footer class="text-center py-6 text-slate-600 text-xs border-t border-slate-900">
-    SuperPOS Cloud v2.0 • Desarrollado con tecnología Edge Offline-First & Respaldo Bancario Oficial BCV
+  <footer class="text-center py-5 text-slate-600 text-[11px] px-4 border-t border-slate-900">
+    SuperPOS Cloud v2.0 • Edge Offline-First & Respaldo Bancario Oficial BCV
   </footer>
 
   <script>
@@ -631,14 +632,14 @@ app.get('/pay/:tenantId', (req, res) => {
       if (t === 'pm') {
         document.getElementById('tab-pm').classList.remove('hidden');
         document.getElementById('tab-binance').classList.add('hidden');
-        document.getElementById('tab-pm-btn').className = 'px-4 py-2 rounded-xl font-bold text-xs bg-sky-600 text-white transition flex items-center gap-2';
-        document.getElementById('tab-binance-btn').className = 'px-4 py-2 rounded-xl font-bold text-xs bg-slate-800 text-slate-400 hover:text-white transition flex items-center gap-2';
+        document.getElementById('tab-pm-btn').className = 'py-2.5 px-3 rounded-xl font-bold text-xs bg-sky-600 text-white transition flex items-center justify-center gap-1.5 text-center';
+        document.getElementById('tab-binance-btn').className = 'py-2.5 px-3 rounded-xl font-bold text-xs bg-slate-800 text-slate-400 hover:text-white transition flex items-center justify-center gap-1.5 text-center';
         document.getElementById('p-method').value = 'PAGO_MOVIL';
       } else {
         document.getElementById('tab-binance').classList.remove('hidden');
         document.getElementById('tab-pm').classList.add('hidden');
-        document.getElementById('tab-binance-btn').className = 'px-4 py-2 rounded-xl font-bold text-xs bg-amber-600 text-white transition flex items-center gap-2';
-        document.getElementById('tab-pm-btn').className = 'px-4 py-2 rounded-xl font-bold text-xs bg-slate-800 text-slate-400 hover:text-white transition flex items-center gap-2';
+        document.getElementById('tab-binance-btn').className = 'py-2.5 px-3 rounded-xl font-bold text-xs bg-amber-600 text-white transition flex items-center justify-center gap-1.5 text-center';
+        document.getElementById('tab-pm-btn').className = 'py-2.5 px-3 rounded-xl font-bold text-xs bg-slate-800 text-slate-400 hover:text-white transition flex items-center justify-center gap-1.5 text-center';
         document.getElementById('p-method').value = 'BINANCE_PAY';
       }
     }
@@ -701,7 +702,7 @@ app.get('/pay/:tenantId', (req, res) => {
 });
 
 // ==============================================================================
-// 4. DASHBOARD SUPERADMIN (/)
+// 4. DASHBOARD SUPERADMIN (/) - 100% RESPONSIVE (MÓVIL, TABLET, ESCRITORIO)
 // ==============================================================================
 app.get('/', (req, res) => {
   const cfg = readJson(CONFIG_FILE, {});
@@ -712,86 +713,88 @@ app.get('/', (req, res) => {
 <html lang="es" class="dark">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>SuperPOS Master Cloud — Panel de Control SaaS</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     body { font-family: 'Plus Jakarta Sans', sans-serif; }
-    .custom-scroll::-webkit-scrollbar { width: 6px; }
+    .custom-scroll::-webkit-scrollbar { width: 5px; height: 5px; }
     .custom-scroll::-webkit-scrollbar-track { background: #0f172a; }
     .custom-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 9999px; }
   </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen">
+<body class="bg-slate-950 text-slate-100 min-h-screen selection:bg-sky-500 selection:text-white">
   <header class="border-b border-slate-800 bg-slate-900/90 sticky top-0 z-50 backdrop-blur">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-600 to-emerald-500 flex items-center justify-center font-black text-xl shadow-lg shadow-sky-500/20">⚡</div>
+    <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-2.5">
+        <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-sky-600 to-emerald-500 flex items-center justify-center font-black text-lg sm:text-xl shadow-lg shadow-sky-500/20 flex-shrink-0">⚡</div>
         <div>
-          <span class="font-bold text-lg text-white">SuperPOS <span class="text-sky-400">Master Cloud</span></span>
-          <span class="text-[10px] block text-emerald-400 font-mono font-semibold">● SERVIDOR CENTRAL SAAS ACTIVO</span>
+          <span class="font-bold text-base sm:text-lg text-white block leading-tight">SuperPOS <span class="text-sky-400">Master Cloud</span></span>
+          <span class="text-[9px] sm:text-[10px] text-emerald-400 font-mono font-semibold">● SERVIDOR CENTRAL SAAS</span>
         </div>
       </div>
 
-      <div class="flex items-center gap-3">
-        <div class="bg-slate-950 border border-slate-800 px-3 py-1.5 rounded-xl flex items-center gap-2">
-          <span class="text-xs font-bold text-emerald-400">🇻🇪 BCV: <span id="bcv-val">${bcvRate}</span> Bs/$</span>
-          <button onclick="syncBcvNow()" title="Sincronizar ahora con bcv.org.ve" class="text-slate-400 hover:text-white text-xs bg-slate-800 px-2 py-0.5 rounded-lg transition">🔄</button>
+      <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+        <div class="bg-slate-950 border border-slate-800 px-2.5 py-1 rounded-xl flex items-center gap-1.5 text-xs">
+          <span class="font-bold text-emerald-400 text-[11px] sm:text-xs">🇻🇪 BCV: <span id="bcv-val">${bcvRate}</span></span>
+          <button onclick="syncBcvNow()" title="Sincronizar ahora con bcv.org.ve" class="text-slate-400 hover:text-white bg-slate-800 px-1.5 py-0.5 rounded transition">🔄</button>
         </div>
-        <button onclick="openConfigModal()" class="bg-amber-600/20 hover:bg-amber-600 text-amber-300 hover:text-white border border-amber-500/40 text-xs font-bold px-3 py-2 rounded-xl transition flex items-center gap-1.5">
-          <span>⚙️</span> Cuentas & QR Binance
-        </button>
-        <button onclick="openNewTenantModal()" class="bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold px-4 py-2 rounded-xl transition shadow-lg shadow-sky-600/30 flex items-center gap-1.5">
-          <span>+</span> Nuevo Supermercado
-        </button>
+        <div class="flex items-center gap-1.5">
+          <button onclick="openConfigModal()" class="bg-amber-600/20 hover:bg-amber-600 text-amber-300 hover:text-white border border-amber-500/40 text-[11px] sm:text-xs font-bold px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl transition flex items-center gap-1">
+            <span>⚙️</span> <span class="hidden sm:inline">Cuentas & </span>QR
+          </button>
+          <button onclick="openNewTenantModal()" class="bg-sky-600 hover:bg-sky-500 text-white text-[11px] sm:text-xs font-bold px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl transition shadow-lg shadow-sky-600/30 flex items-center gap-1">
+            <span>+</span> <span class="hidden sm:inline">Nuevo </span>Supermercado
+          </button>
+        </div>
       </div>
     </div>
   </header>
 
-  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-      <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl">
-        <div class="text-slate-400 text-xs font-semibold uppercase tracking-wider">Supermercados Activos</div>
-        <div id="stat-active" class="text-3xl font-black text-emerald-400 mt-2">0</div>
-        <div class="text-[11px] text-slate-500 mt-1">Nodos Edge autorizados</div>
+  <main class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-6 space-y-6">
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div class="bg-slate-900 border border-slate-800 p-4 sm:p-5 rounded-2xl">
+        <div class="text-slate-400 text-[10px] sm:text-xs font-semibold uppercase tracking-wider">Supermercados</div>
+        <div id="stat-active" class="text-2xl sm:text-3xl font-black text-emerald-400 mt-1">0</div>
+        <div class="text-[10px] text-slate-500 mt-0.5">Nodos autorizados</div>
       </div>
-      <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl">
-        <div class="text-slate-400 text-xs font-semibold uppercase tracking-wider">Clientes Suspendidos</div>
-        <div id="stat-suspended" class="text-3xl font-black text-rose-400 mt-2">0</div>
-        <div class="text-[11px] text-slate-500 mt-1">Acceso bloqueado (Mora)</div>
+      <div class="bg-slate-900 border border-slate-800 p-4 sm:p-5 rounded-2xl">
+        <div class="text-slate-400 text-[10px] sm:text-xs font-semibold uppercase tracking-wider">Suspendidos</div>
+        <div id="stat-suspended" class="text-2xl sm:text-3xl font-black text-rose-400 mt-1">0</div>
+        <div class="text-[10px] text-slate-500 mt-0.5">Acceso bloqueado</div>
       </div>
-      <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl">
-        <div class="text-slate-400 text-xs font-semibold uppercase tracking-wider">MRR Recurrente (USD)</div>
-        <div id="stat-revenue" class="text-3xl font-black text-sky-400 mt-2">$0</div>
-        <div id="stat-revenue-ves" class="text-[11px] text-slate-400 mt-1">Bs. 0 al BCV</div>
+      <div class="bg-slate-900 border border-slate-800 p-4 sm:p-5 rounded-2xl">
+        <div class="text-slate-400 text-[10px] sm:text-xs font-semibold uppercase tracking-wider">MRR Recurrente</div>
+        <div id="stat-revenue" class="text-2xl sm:text-3xl font-black text-sky-400 mt-1">$0</div>
+        <div id="stat-revenue-ves" class="text-[10px] text-slate-400 mt-0.5 truncate">Bs. 0 al BCV</div>
       </div>
-      <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl">
-        <div class="text-slate-400 text-xs font-semibold uppercase tracking-wider">Pagos por Validar</div>
-        <div id="stat-pending-payments" class="text-3xl font-black text-amber-400 mt-2">0</div>
-        <div class="text-[11px] text-slate-500 mt-1">Comprobantes recibidos</div>
+      <div class="bg-slate-900 border border-slate-800 p-4 sm:p-5 rounded-2xl">
+        <div class="text-slate-400 text-[10px] sm:text-xs font-semibold uppercase tracking-wider">Por Validar</div>
+        <div id="stat-pending-payments" class="text-2xl sm:text-3xl font-black text-amber-400 mt-1">0</div>
+        <div class="text-[10px] text-slate-500 mt-0.5">Comprobantes</div>
       </div>
     </div>
 
     <div id="pending-payments-section" class="bg-slate-900 border border-amber-800/40 rounded-2xl overflow-hidden shadow-xl hidden">
-      <div class="px-6 py-4 border-b border-slate-800 bg-amber-950/20 flex items-center justify-between">
+      <div class="px-4 sm:px-6 py-3.5 border-b border-slate-800 bg-amber-950/20 flex items-center justify-between">
         <div>
-          <h2 class="text-base font-bold text-amber-300 flex items-center gap-2">
-            <span>🔔</span> Comprobantes de Pago Pendientes de Aprobación
+          <h2 class="text-xs sm:text-sm font-bold text-amber-300 flex items-center gap-1.5">
+            <span>🔔</span> Comprobantes de Pago Pendientes
           </h2>
-          <p class="text-xs text-slate-400">Verifique los fondos en su Pago Móvil o Binance antes de aprobar.</p>
+          <p class="text-[10px] sm:text-xs text-slate-400">Verifique los fondos en Pago Móvil o Binance antes de aprobar.</p>
         </div>
-        <button onclick="loadPayments()" class="text-xs text-slate-400 hover:text-white bg-slate-800 px-3 py-1.5 rounded-lg">🔄 Refrescar</button>
+        <button onclick="loadPayments()" class="text-xs text-slate-400 hover:text-white bg-slate-800 px-2.5 py-1 rounded-lg">🔄</button>
       </div>
-      <div class="overflow-x-auto">
-        <table class="w-full text-left border-collapse text-xs">
+      <div class="overflow-x-auto custom-scroll">
+        <table class="w-full text-left border-collapse text-xs min-w-[500px]">
           <thead>
             <tr class="border-b border-slate-800 text-slate-400 uppercase text-[10px] bg-slate-950/60">
-              <th class="py-3 px-6">Supermercado</th>
-              <th class="py-3 px-6">Monto Reportado</th>
-              <th class="py-3 px-6">Método & Ref</th>
-              <th class="py-3 px-6">Comprobante</th>
-              <th class="py-3 px-6 text-right">Acción</th>
+              <th class="py-2.5 px-4">Supermercado</th>
+              <th class="py-2.5 px-4">Monto</th>
+              <th class="py-2.5 px-4">Método & Ref</th>
+              <th class="py-2.5 px-4">Comprobante</th>
+              <th class="py-2.5 px-4 text-right">Acción</th>
             </tr>
           </thead>
           <tbody id="payments-tbody" class="divide-y border-slate-800"></tbody>
@@ -800,27 +803,27 @@ app.get('/', (req, res) => {
     </div>
 
     <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-      <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
+      <div class="px-4 sm:px-6 py-3.5 border-b border-slate-800 flex items-center justify-between">
         <div>
-          <h2 class="text-base font-bold text-white">Supermercados y Comercios Conectados</h2>
-          <p class="text-xs text-slate-400">Edición de permisos, módulos, límites de cajeros, Kill-Switch y enlaces de cobro.</p>
+          <h2 class="text-sm sm:text-base font-bold text-white">Supermercados Conectados</h2>
+          <p class="text-[11px] text-slate-400 hidden sm:block">Control de licencias, módulos, límites y enlaces de cobro.</p>
         </div>
-        <button onclick="loadTenants()" class="text-xs text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg transition">
-          🔄 Actualizar Lista
+        <button onclick="loadTenants()" class="text-xs text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg transition flex items-center gap-1">
+          <span>🔄</span> <span class="hidden sm:inline">Actualizar</span>
         </button>
       </div>
 
-      <div class="overflow-x-auto">
+      <div class="hidden md:block overflow-x-auto custom-scroll">
         <table class="w-full text-left border-collapse text-xs">
           <thead>
             <tr class="border-b border-slate-800 text-slate-400 uppercase text-[10px] tracking-wider bg-slate-950/40">
-              <th class="py-3 px-6">Supermercado / RIF</th>
-              <th class="py-3 px-6">Capacidad</th>
-              <th class="py-3 px-6">Plan & Canon</th>
-              <th class="py-3 px-6">Módulos Habilitados</th>
-              <th class="py-3 px-6">Vencimiento</th>
-              <th class="py-3 px-6">Estado</th>
-              <th class="py-3 px-6 text-right">Gestión Directa</th>
+              <th class="py-3 px-5">Supermercado / RIF</th>
+              <th class="py-3 px-5">Capacidad</th>
+              <th class="py-3 px-5">Plan & Canon</th>
+              <th class="py-3 px-5">Módulos</th>
+              <th class="py-3 px-5">Vencimiento</th>
+              <th class="py-3 px-5">Estado</th>
+              <th class="py-3 px-5 text-right">Gestión</th>
             </tr>
           </thead>
           <tbody id="tenants-tbody" class="divide-y divide-slate-800/60">
@@ -828,27 +831,31 @@ app.get('/', (req, res) => {
           </tbody>
         </table>
       </div>
+
+      <div class="md:hidden p-3 space-y-3" id="tenants-mobile-container">
+        <div class="py-8 text-center text-slate-500 text-xs">Cargando supermercados...</div>
+      </div>
     </div>
   </main>
 
-  <div id="editTenantModal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-3xl max-w-3xl w-full p-6 space-y-4 shadow-2xl overflow-y-auto max-h-[92vh] custom-scroll">
+  <div id="editTenantModal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-sm z-50 hidden flex items-center justify-center p-2 sm:p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl max-w-3xl w-full p-4 sm:p-6 space-y-4 shadow-2xl overflow-y-auto max-h-[94vh] custom-scroll">
       <div class="flex items-center justify-between border-b border-slate-800 pb-3">
         <div>
-          <h3 class="text-base font-bold text-white flex items-center gap-2">
-            <span>✏️</span> Editar Supermercado, Límites & Permisos de Módulos
+          <h3 class="text-sm sm:text-base font-bold text-white flex items-center gap-1.5">
+            <span>✏️</span> Editar Supermercado & Permisos
           </h3>
-          <span id="edit-modal-subtitle" class="text-xs text-slate-400 font-mono">ID: tenant-super-1</span>
+          <span id="edit-modal-subtitle" class="text-[11px] text-slate-400 font-mono">ID: tenant-super-1</span>
         </div>
-        <button onclick="closeEditTenantModal()" class="text-slate-400 hover:text-white text-xl font-bold">&times;</button>
+        <button onclick="closeEditTenantModal()" class="text-slate-400 hover:text-white text-2xl font-bold leading-none p-1">&times;</button>
       </div>
 
-      <form id="editTenantForm" onsubmit="saveTenantChanges(event)" class="space-y-4 text-xs">
+      <form id="editTenantForm" onsubmit="saveTenantChanges(event)" class="space-y-3.5 text-xs">
         <input type="hidden" id="edit-tenant-id">
 
-        <div class="p-4 bg-slate-950 rounded-2xl border border-slate-800 space-y-3">
-          <span class="font-bold text-sky-400 block uppercase tracking-wider text-[11px]">🏢 Datos del Comercio</span>
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div class="p-3.5 bg-slate-950 rounded-xl sm:rounded-2xl border border-slate-800 space-y-2.5">
+          <span class="font-bold text-sky-400 block uppercase tracking-wider text-[10px] sm:text-[11px]">🏢 Datos del Comercio</span>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
             <div>
               <label class="block text-slate-400 mb-1">Nombre Comercial</label>
               <input type="text" id="edit-name" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-medium">
@@ -862,9 +869,9 @@ app.get('/', (req, res) => {
               <input type="text" id="edit-city" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white">
             </div>
           </div>
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             <div>
-              <label class="block text-slate-400 mb-1">Contacto / Gerente</label>
+              <label class="block text-slate-400 mb-1">Persona de Contacto</label>
               <input type="text" id="edit-contact" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white">
             </div>
             <div>
@@ -874,12 +881,12 @@ app.get('/', (req, res) => {
           </div>
         </div>
 
-        <div class="p-4 bg-slate-950 rounded-2xl border border-slate-800 space-y-3">
-          <span class="font-bold text-emerald-400 block uppercase tracking-wider text-[11px]">👥 Límites de Usuarios, Cajas & Plan</span>
-          <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+        <div class="p-3.5 bg-slate-950 rounded-xl sm:rounded-2xl border border-slate-800 space-y-2.5">
+          <span class="font-bold text-emerald-400 block uppercase tracking-wider text-[10px] sm:text-[11px]">👥 Límites de Usuarios, Cajas & Plan</span>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
             <div>
               <label class="block text-slate-400 mb-1">Plan SaaS</label>
-              <select id="edit-plan" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white">
+              <select id="edit-plan" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-bold">
                 <option value="BASICO">BÁSICO</option>
                 <option value="PROFESIONAL">PROFESIONAL</option>
                 <option value="ENTERPRISE">ENTERPRISE</option>
@@ -887,21 +894,21 @@ app.get('/', (req, res) => {
               </select>
             </div>
             <div>
-              <label class="block text-slate-400 mb-1">Canon Mensual ($)</label>
+              <label class="block text-slate-400 mb-1">Canon ($ USD)</label>
               <input type="number" id="edit-price" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-bold text-emerald-400">
             </div>
             <div>
-              <label class="block text-slate-400 mb-1">Máx. Usuarios / Cajeros</label>
+              <label class="block text-slate-400 mb-1">Máx. Usuarios</label>
               <input type="number" id="edit-max-users" min="1" max="500" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-bold text-sky-400">
             </div>
             <div>
-              <label class="block text-slate-400 mb-1">Máx. Cajas / Estaciones</label>
+              <label class="block text-slate-400 mb-1">Máx. Cajas/POS</label>
               <input type="number" id="edit-max-ws" min="1" max="100" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-bold text-amber-400">
             </div>
           </div>
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
             <div>
-              <label class="block text-slate-400 mb-1">Fecha de Vencimiento de Licencia</label>
+              <label class="block text-slate-400 mb-1">Fecha de Vencimiento</label>
               <input type="date" id="edit-due-date" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono">
             </div>
             <div>
@@ -914,37 +921,40 @@ app.get('/', (req, res) => {
           </div>
         </div>
 
-        <div class="p-4 bg-slate-950 rounded-2xl border border-slate-800 space-y-3">
-          <div class="flex items-center justify-between">
+        <div class="p-3.5 bg-slate-950 rounded-xl sm:rounded-2xl border border-slate-800 space-y-2.5">
+          <div class="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <span class="font-bold text-amber-400 block uppercase tracking-wider text-[11px]">🧩 Permisos de Módulos Autorizados</span>
-              <span class="text-[10px] text-slate-400">Los módulos desmarcados quedarán bloqueados en el sistema del supermercado.</span>
+              <span class="font-bold text-amber-400 block uppercase tracking-wider text-[10px] sm:text-[11px]">🧩 Permisos de Módulos Autorizados</span>
+              <span class="text-[10px] text-slate-400">Módulos desmarcados se bloquearán en el supermercado.</span>
             </div>
-            <div class="space-x-1.5">
-              <button type="button" onclick="selectAllModules(true)" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-sky-400 font-bold px-2.5 py-1 rounded-lg">Seleccionar Todos</button>
-              <button type="button" onclick="selectAllModules(false)" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-400 px-2.5 py-1 rounded-lg">Limpiar</button>
+            <div class="space-x-1">
+              <button type="button" onclick="selectAllModules(true)" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-sky-400 font-bold px-2 py-1 rounded-lg">Todos</button>
+              <button type="button" onclick="selectAllModules(false)" class="text-[10px] bg-slate-800 hover:bg-slate-700 text-slate-400 px-2 py-1 rounded-lg">Ninguno</button>
             </div>
           </div>
 
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2" id="modules-checklist-container"></div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1" id="modules-checklist-container"></div>
         </div>
 
-        <div class="flex justify-between items-center pt-3 border-t border-slate-800">
-          <button type="button" onclick="deleteCurrentTenant()" class="px-4 py-2 bg-rose-950/60 hover:bg-rose-900 text-rose-400 border border-rose-800/60 rounded-xl font-bold transition">
-            🗑️ Eliminar Supermercado
+        <div class="flex flex-col-reverse sm:flex-row justify-between items-center gap-2 pt-3 border-t border-slate-800">
+          <button type="button" onclick="deleteCurrentTenant()" class="w-full sm:w-auto px-4 py-2 bg-rose-950/60 hover:bg-rose-900 text-rose-400 border border-rose-800/60 rounded-xl font-bold transition">
+            🗑️ Eliminar
           </button>
-          <div class="flex gap-2">
-            <button type="button" onclick="closeEditTenantModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-slate-300 font-medium">Cancelar</button>
-            <button type="submit" class="px-5 py-2 bg-sky-600 hover:bg-sky-500 rounded-xl text-white font-bold shadow-lg shadow-sky-600/30">Guardar Cambios</button>
+          <div class="flex w-full sm:w-auto gap-2">
+            <button type="button" onclick="closeEditTenantModal()" class="w-1/2 sm:w-auto px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-slate-300">Cancelar</button>
+            <button type="submit" class="w-1/2 sm:w-auto px-5 py-2 bg-sky-600 hover:bg-sky-500 rounded-xl text-white font-bold shadow-lg shadow-sky-600/30">Guardar</button>
           </div>
         </div>
       </form>
     </div>
   </div>
 
-  <div id="newModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
-      <h3 class="text-base font-bold text-white">Registrar Nuevo Supermercado</h3>
+  <div id="newModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-3 sm:p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl max-w-md w-full p-4 sm:p-6 space-y-3.5 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-2.5">
+        <h3 class="text-sm sm:text-base font-bold text-white">Registrar Nuevo Supermercado</h3>
+        <button onclick="closeNewTenantModal()" class="text-slate-400 hover:text-white text-xl font-bold">&times;</button>
+      </div>
       <form id="newTenantForm" onsubmit="createTenant(event)" class="space-y-3 text-xs">
         <div>
           <label class="block text-slate-400 mb-1">Nombre Comercial / Empresa</label>
@@ -958,7 +968,7 @@ app.get('/', (req, res) => {
           <label class="block text-slate-400 mb-1">Ciudad / Estado</label>
           <input type="text" id="t-city" required class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white outline-none focus:border-sky-500" placeholder="Maracay, Aragua">
         </div>
-        <div class="grid grid-cols-2 gap-3">
+        <div class="grid grid-cols-2 gap-2.5">
           <div>
             <label class="block text-slate-400 mb-1">Plan SaaS</label>
             <select id="t-plan" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white outline-none focus:border-sky-500">
@@ -974,25 +984,25 @@ app.get('/', (req, res) => {
         </div>
         <div class="flex justify-end gap-2 pt-2">
           <button type="button" onclick="closeNewTenantModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-slate-300">Cancelar</button>
-          <button type="submit" class="px-4 py-2 bg-sky-600 hover:bg-sky-500 rounded-xl text-white font-bold">Guardar Supermercado</button>
+          <button type="submit" class="px-4 py-2 bg-sky-600 hover:bg-sky-500 rounded-xl text-white font-bold">Guardar</button>
         </div>
       </form>
     </div>
   </div>
 
-  <div id="configModal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-3xl max-w-xl w-full p-6 space-y-4 shadow-2xl overflow-y-auto max-h-[90vh]">
+  <div id="configModal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-sm z-50 hidden flex items-center justify-center p-3 sm:p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl max-w-xl w-full p-4 sm:p-6 space-y-4 shadow-2xl overflow-y-auto max-h-[92vh] custom-scroll">
       <div class="flex items-center justify-between border-b border-slate-800 pb-3">
-        <h3 class="text-base font-bold text-white flex items-center gap-2">
-          <span>⚙️</span> Cuentas de Cobro & Código QR Binance Pay
+        <h3 class="text-sm sm:text-base font-bold text-white flex items-center gap-1.5">
+          <span>⚙️</span> Cuentas de Cobro & QR Binance
         </h3>
-        <button onclick="closeConfigModal()" class="text-slate-400 hover:text-white text-lg font-bold">&times;</button>
+        <button onclick="closeConfigModal()" class="text-slate-400 hover:text-white text-xl font-bold">&times;</button>
       </div>
 
-      <form id="configForm" onsubmit="saveConfig(event)" class="space-y-4 text-xs">
-        <div class="p-4 bg-slate-950 rounded-2xl border border-slate-800 space-y-3">
-          <span class="font-bold text-sky-400 block uppercase tracking-wider text-[11px]">📱 Datos de Pago Móvil Nacional</span>
-          <div class="grid grid-cols-2 gap-3">
+      <form id="configForm" onsubmit="saveConfig(event)" class="space-y-3.5 text-xs">
+        <div class="p-3.5 bg-slate-950 rounded-xl sm:rounded-2xl border border-slate-800 space-y-2.5">
+          <span class="font-bold text-sky-400 block uppercase tracking-wider text-[10px] sm:text-[11px]">📱 Datos de Pago Móvil</span>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             <div>
               <label class="block text-slate-400 mb-1">Banco Receptor</label>
               <input type="text" id="cfg-pm-bank" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-medium" placeholder="Banco de Venezuela (0102)">
@@ -1003,16 +1013,16 @@ app.get('/', (req, res) => {
             </div>
           </div>
           <div>
-            <label class="block text-slate-400 mb-1">C.I. / RIF del Beneficiario</label>
+            <label class="block text-slate-400 mb-1">C.I. / RIF Beneficiario</label>
             <input type="text" id="cfg-pm-rif" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono" placeholder="V-26123456-7">
           </div>
         </div>
 
-        <div class="p-4 bg-slate-950 rounded-2xl border border-slate-800 space-y-3">
-          <span class="font-bold text-amber-400 block uppercase tracking-wider text-[11px]">🟡 Datos de Binance Pay & Carga de Imagen QR</span>
-          <div class="grid grid-cols-2 gap-3">
+        <div class="p-3.5 bg-slate-950 rounded-xl sm:rounded-2xl border border-slate-800 space-y-2.5">
+          <span class="font-bold text-amber-400 block uppercase tracking-wider text-[10px] sm:text-[11px]">🟡 Datos de Binance Pay & QR</span>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             <div>
-              <label class="block text-slate-400 mb-1">Binance Pay ID / Numérico</label>
+              <label class="block text-slate-400 mb-1">Binance Pay ID</label>
               <input type="text" id="cfg-binance-id" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono" placeholder="849201948">
             </div>
             <div>
@@ -1022,31 +1032,30 @@ app.get('/', (req, res) => {
           </div>
 
           <div>
-            <label class="block text-slate-300 font-bold mb-1">📷 Imagen del Código QR de Binance (Subir Archivo)</label>
-            <div class="flex items-center gap-3 mt-1">
+            <label class="block text-slate-300 font-bold mb-1">📷 Imagen del Código QR (Archivo)</label>
+            <div class="flex flex-wrap items-center gap-2 mt-1">
               <input type="file" id="cfg-binance-qr-file" accept="image/*" onchange="previewBinanceQr(event)" class="hidden">
-              <button type="button" onclick="document.getElementById('cfg-binance-qr-file').click()" class="bg-amber-600 hover:bg-amber-500 text-white font-bold px-4 py-2 rounded-xl flex items-center gap-2">
+              <button type="button" onclick="document.getElementById('cfg-binance-qr-file').click()" class="bg-amber-600 hover:bg-amber-500 text-white font-bold px-3.5 py-2 rounded-xl flex items-center gap-1.5 text-xs">
                 <span>📁</span> Cargar Imagen del QR
               </button>
               <button type="button" onclick="removeBinanceQr()" id="btn-remove-qr" class="text-rose-400 hover:text-rose-300 text-xs underline hidden">
-                Eliminar QR
+                Eliminar
               </button>
             </div>
-            <p class="text-[11px] text-slate-500 mt-1">Selecciona la captura o foto del código QR de tu cuenta de Binance.</p>
 
-            <div id="qr-preview-container" class="mt-3 p-3 bg-slate-900 border border-slate-800 rounded-2xl flex items-center gap-4 hidden">
-              <img id="qr-preview-img" src="" class="w-24 h-24 rounded-xl border border-amber-500/60 object-contain bg-white p-1">
+            <div id="qr-preview-container" class="mt-2.5 p-2.5 bg-slate-900 border border-slate-800 rounded-xl flex items-center gap-3 hidden">
+              <img id="qr-preview-img" src="" class="w-20 h-20 rounded-lg border border-amber-500/60 object-contain bg-white p-1 flex-shrink-0">
               <div>
-                <span class="text-xs font-bold text-emerald-400 block">✅ Imagen de QR cargada correctamente</span>
-                <span class="text-[10px] text-slate-400 block mt-0.5">Se mostrará en los enlaces de pago de tus clientes.</span>
+                <span class="text-xs font-bold text-emerald-400 block">✅ Imagen de QR cargada</span>
+                <span class="text-[10px] text-slate-400 block mt-0.5">Visible en enlaces de pago de clientes.</span>
               </div>
             </div>
           </div>
         </div>
 
-        <div class="flex justify-end gap-2 pt-3 border-t border-slate-800">
+        <div class="flex justify-end gap-2 pt-2 border-t border-slate-800">
           <button type="button" onclick="closeConfigModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-slate-300">Cancelar</button>
-          <button type="submit" class="px-5 py-2 bg-sky-600 hover:bg-sky-500 rounded-xl text-white font-bold shadow-lg">Guardar Configuración</button>
+          <button type="submit" class="px-5 py-2 bg-sky-600 hover:bg-sky-500 rounded-xl text-white font-bold shadow-lg">Guardar</button>
         </div>
       </form>
     </div>
@@ -1065,11 +1074,11 @@ app.get('/', (req, res) => {
       availableModulesList.forEach(m => {
         const isChecked = enabledList.includes(m.id);
         const div = document.createElement('label');
-        div.className = 'flex items-start gap-3 p-2.5 rounded-xl border border-slate-800 bg-slate-900/60 hover:bg-slate-800/80 cursor-pointer transition select-none';
+        div.className = 'flex items-start gap-2.5 p-2.5 rounded-xl border border-slate-800 bg-slate-900/60 hover:bg-slate-800/80 cursor-pointer transition select-none';
         div.innerHTML = \`
-          <input type="checkbox" name="module-opt" value="\${m.id}" \${isChecked ? 'checked' : ''} class="mt-0.5 rounded text-sky-600 focus:ring-0 w-4 h-4 bg-slate-950 border-slate-700">
+          <input type="checkbox" name="module-opt" value="\${m.id}" \${isChecked ? 'checked' : ''} class="mt-0.5 rounded text-sky-600 focus:ring-0 w-4 h-4 bg-slate-950 border-slate-700 flex-shrink-0">
           <div>
-            <span class="text-xs font-bold text-white flex items-center gap-1.5">\${m.icon} \${m.name}</span>
+            <span class="text-xs font-bold text-white flex items-center gap-1">\${m.icon} \${m.name}</span>
             <span class="text-[10px] text-slate-400 block leading-tight mt-0.5">\${m.desc}</span>
           </div>
         \`;
@@ -1087,7 +1096,7 @@ app.get('/', (req, res) => {
       if (!tenant) return;
 
       document.getElementById('edit-tenant-id').value = tenant.id;
-      document.getElementById('edit-modal-subtitle').innerText = 'ID: ' + tenant.id + ' | Creado para ' + tenant.name;
+      document.getElementById('edit-modal-subtitle').innerText = 'ID: ' + tenant.id + ' • ' + tenant.name;
       document.getElementById('edit-name').value = tenant.name || '';
       document.getElementById('edit-rif').value = tenant.rif || '';
       document.getElementById('edit-city').value = tenant.city || '';
@@ -1238,7 +1247,7 @@ app.get('/', (req, res) => {
         });
         const data = await res.json();
         if (data.success) {
-          alert('✅ Configuración de cobros y QR guardada exitosamente.');
+          alert('✅ Configuración guardada exitosamente.');
           closeConfigModal();
         }
       } catch (err) {
@@ -1248,7 +1257,7 @@ app.get('/', (req, res) => {
 
     async function syncBcvNow() {
       const bcvElem = document.getElementById('bcv-val');
-      bcvElem.innerText = 'Consultando...';
+      bcvElem.innerText = '...';
       try {
         const res = await fetch('/api/cloud/bcv-rate/sync-now', { method: 'POST' });
         const data = await res.json();
@@ -1275,10 +1284,13 @@ app.get('/', (req, res) => {
         let totalMRR = 0;
 
         const tbody = document.getElementById('tenants-tbody');
+        const mobileContainer = document.getElementById('tenants-mobile-container');
         tbody.innerHTML = '';
+        mobileContainer.innerHTML = '';
 
         if (!tenants || tenants.length === 0) {
           tbody.innerHTML = '<tr><td colspan="7" class="py-8 text-center text-slate-500">No hay clientes registrados aún.</td></tr>';
+          mobileContainer.innerHTML = '<div class="py-8 text-center text-slate-500 text-xs">No hay clientes registrados aún.</div>';
           return;
         }
 
@@ -1300,43 +1312,43 @@ app.get('/', (req, res) => {
           const row = document.createElement('tr');
           row.className = 'hover:bg-slate-800/40 transition';
           row.innerHTML = \`
-            <td class="py-4 px-6 font-medium text-white">
+            <td class="py-3.5 px-5 font-medium text-white">
               <div class="font-bold text-sm">\${t.name}</div>
               <div class="text-slate-500 font-mono text-[11px]">\${t.rif} • \${t.city || 'Venezuela'}</div>
               <div class="text-slate-400 text-[10px] mt-0.5">\${t.contactName || ''} (\${t.contactPhone || 'Sin tlf'})</div>
             </td>
-            <td class="py-4 px-6">
+            <td class="py-3.5 px-5">
               <div class="text-sky-400 font-bold">\${t.maxUsers || 10} <span class="text-slate-400 font-normal text-[11px]">Usuarios</span></div>
               <div class="text-amber-400 font-bold">\${t.maxWorkstations || 4} <span class="text-slate-400 font-normal text-[11px]">Cajas/POS</span></div>
             </td>
-            <td class="py-4 px-6">
+            <td class="py-3.5 px-5">
               <span class="font-bold text-white">\${t.plan}</span>
               <span class="text-emerald-400 font-black block">$\${monthlyUsd} USD / mes</span>
               <span class="text-[10px] text-slate-400 block font-mono">Bs. \${monthlyVes}</span>
             </td>
-            <td class="py-4 px-6">
+            <td class="py-3.5 px-5">
               <span class="bg-slate-800 border border-slate-700 text-sky-300 px-2.5 py-1 rounded-lg text-[11px] font-bold">
-                🧩 \${modCount} / \${availableModulesList.length} Módulos
+                🧩 \${modCount} / \${availableModulesList.length}
               </span>
             </td>
-            <td class="py-4 px-6 text-slate-300 font-mono text-[11px]">
+            <td class="py-3.5 px-5 text-slate-300 font-mono text-[11px]">
               \${t.nextDueDate ? new Date(t.nextDueDate).toLocaleDateString() : 'Sin fecha'}
             </td>
-            <td class="py-4 px-6">
+            <td class="py-3.5 px-5">
               \${isActive ? 
                 '<span class="bg-emerald-950/80 text-emerald-400 border border-emerald-800/60 px-2.5 py-1 rounded-full text-[10px] font-bold">● ACTIVO</span>' : 
                 '<span class="bg-rose-950/80 text-rose-400 border border-rose-800/60 px-2.5 py-1 rounded-full text-[10px] font-bold">■ SUSPENDIDO</span>'
               }
             </td>
-            <td class="py-4 px-6 text-right space-x-1.5 whitespace-nowrap">
-              <button onclick="openEditTenantModal('\${t.id}')" title="Editar Supermercado, Límites y Módulos" class="bg-sky-600/20 hover:bg-sky-600 text-sky-300 hover:text-white border border-sky-600/40 px-3 py-1.5 rounded-xl font-bold transition">
-                ✏️ Editar Módulos
+            <td class="py-3.5 px-5 text-right space-x-1.5 whitespace-nowrap">
+              <button onclick="openEditTenantModal('\${t.id}')" title="Editar Supermercado, Límites y Módulos" class="bg-sky-600/20 hover:bg-sky-600 text-sky-300 hover:text-white border border-sky-600/40 px-2.5 py-1.5 rounded-xl font-bold transition">
+                ✏️ Editar
               </button>
               <button onclick="copyPayLink('\${payUrl}')" title="Copiar Enlace de Pago" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1.5 rounded-xl font-bold transition">
                 🔗 Link
               </button>
               <button onclick="sendWhatsappBill('\${t.name}', '\${t.contactPhone}', '\${monthlyUsd}', '\${monthlyVes}', '\${payUrl}')" title="Cobrar por WhatsApp" class="bg-emerald-600/20 hover:bg-emerald-600 text-emerald-400 hover:text-white border border-emerald-600/40 px-2.5 py-1.5 rounded-xl font-bold transition">
-                💬 WhatsApp
+                💬 WA
               </button>
               <button onclick="generateOfflineToken('\${t.id}')" title="Generar Licencia Offline 30 Días" class="bg-amber-600/20 hover:bg-amber-600 text-amber-400 hover:text-white border border-amber-600/40 px-2.5 py-1.5 rounded-xl font-bold transition">
                 🔑 Token
@@ -1348,6 +1360,57 @@ app.get('/', (req, res) => {
             </td>
           \`;
           tbody.appendChild(row);
+
+          const card = document.createElement('div');
+          card.className = 'bg-slate-950/80 border border-slate-800 rounded-2xl p-4 space-y-3';
+          card.innerHTML = \`
+            <div class="flex items-start justify-between gap-2">
+              <div>
+                <h3 class="font-bold text-white text-sm leading-tight">\${t.name}</h3>
+                <span class="text-slate-400 font-mono text-[11px] block mt-0.5">\${t.rif} • \${t.city || 'Venezuela'}</span>
+              </div>
+              <div>
+                \${isActive ? 
+                  '<span class="bg-emerald-950/80 text-emerald-400 border border-emerald-800/60 px-2 py-0.5 rounded-full text-[9px] font-bold">● ACTIVO</span>' : 
+                  '<span class="bg-rose-950/80 text-rose-400 border border-rose-800/60 px-2 py-0.5 rounded-full text-[9px] font-bold">■ SUSPENDIDO</span>'
+                }
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 bg-slate-900/60 p-2.5 rounded-xl text-[11px]">
+              <div>
+                <span class="text-slate-400 block text-[10px]">Plan & Canon:</span>
+                <strong class="text-white font-bold">\${t.plan} ($ \${monthlyUsd})</strong>
+                <span class="text-emerald-400 block text-[10px] font-mono">Bs. \${monthlyVes}</span>
+              </div>
+              <div>
+                <span class="text-slate-400 block text-[10px]">Capacidad:</span>
+                <span class="text-sky-400 font-bold block">\${t.maxUsers || 10} Usuarios</span>
+                <span class="text-amber-400 font-bold block">\${t.maxWorkstations || 4} Cajas POS</span>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between text-[11px] text-slate-400 pt-1 border-t border-slate-900">
+              <span>🧩 \${modCount} Módulos</span>
+              <span class="font-mono">Vence: \${t.nextDueDate ? new Date(t.nextDueDate).toLocaleDateString() : 'Sin fecha'}</span>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 pt-1">
+              <button onclick="openEditTenantModal('\${t.id}')" class="py-2 px-3 bg-sky-600 hover:bg-sky-500 rounded-xl text-white font-bold text-xs flex items-center justify-center gap-1">
+                ✏️ Editar Módulos
+              </button>
+              <button onclick="sendWhatsappBill('\${t.name}', '\${t.contactPhone}', '\${monthlyUsd}', '\${monthlyVes}', '\${payUrl}')" class="py-2 px-3 bg-emerald-600 hover:bg-emerald-500 rounded-xl text-white font-bold text-xs flex items-center justify-center gap-1">
+                💬 WhatsApp
+              </button>
+              <button onclick="copyPayLink('\${payUrl}')" class="py-2 px-3 bg-slate-800 hover:bg-slate-700 rounded-xl text-slate-300 font-bold text-xs flex items-center justify-center gap-1">
+                🔗 Copiar Link
+              </button>
+              <button onclick="generateOfflineToken('\${t.id}')" class="py-2 px-3 bg-amber-600/20 hover:bg-amber-600 text-amber-400 hover:text-white border border-amber-600/40 rounded-xl font-bold text-xs flex items-center justify-center gap-1">
+                🔑 Token
+              </button>
+            </div>
+          \`;
+          mobileContainer.appendChild(card);
         });
 
         document.getElementById('stat-active').innerText = activeCount;
@@ -1376,14 +1439,14 @@ app.get('/', (req, res) => {
             const tr = document.createElement('tr');
             tr.className = 'hover:bg-slate-800/40';
             tr.innerHTML = \`
-              <td class="py-3 px-6 font-bold text-white">\${p.tenantId}</td>
-              <td class="py-3 px-6 text-emerald-400 font-black">$\${p.amountUsd} USD <span class="text-slate-400 block font-normal text-[10px]">Bs. \${p.amountVes}</span></td>
-              <td class="py-3 px-6"><span class="font-bold">\${p.paymentMethod}</span> <div class="font-mono text-slate-400 text-[10px]">Ref: \${p.referenceNumber}</div></td>
-              <td class="py-3 px-6">
+              <td class="py-3 px-4 font-bold text-white">\${p.tenantId}</td>
+              <td class="py-3 px-4 text-emerald-400 font-black">$\${p.amountUsd} <span class="text-slate-400 block font-normal text-[10px]">Bs. \${p.amountVes}</span></td>
+              <td class="py-3 px-4"><span class="font-bold">\${p.paymentMethod}</span> <div class="font-mono text-slate-400 text-[10px]">Ref: \${p.referenceNumber}</div></td>
+              <td class="py-3 px-4">
                 \${p.voucherBase64 ? \`<a href="\${p.voucherBase64}" target="_blank" class="text-sky-400 underline font-bold">Ver Voucher</a>\` : 'Sin imagen'}
               </td>
-              <td class="py-3 px-6 text-right">
-                <button onclick="approvePayment('\${p.id}')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1.5 rounded-xl">✅ Aprobar y Renovar</button>
+              <td class="py-3 px-4 text-right">
+                <button onclick="approvePayment('\${p.id}')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1 rounded-xl text-xs">✅ Aprobar</button>
               </td>
             \`;
             tbody.appendChild(tr);
