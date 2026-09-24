@@ -1235,11 +1235,11 @@ app.get('/', (req, res) => {
             '  ' + (t.nextDueDate ? new Date(t.nextDueDate).toLocaleDateString() : 'N/A'),
             '</td>',
             '<td class="py-3 px-4 text-right space-x-1.5 whitespace-nowrap">',
-            '  <button onclick="openEditModulesModal(\'' + t.id + '\')" title="Editar Módulos y Límites" class="bg-indigo-600/30 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-500/40 text-[10px] font-bold px-2 py-1 rounded-lg transition">✏️ Módulos</button>',
-            '  <button onclick="copyPayLink(\'' + payLink + '\')" title="Copiar Enlace de Pago" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-bold px-2 py-1 rounded-lg transition">🔗 Link</button>',
-            '  <button onclick="sendWhatsappBill(\'' + (t.name || '').replace(/'/g, "") + '\', \'' + (t.contactPhone || '') + '\', \'' + (t.monthlyPrice || 60) + '\', \'' + (((t.monthlyPrice || 60)*bcv).toFixed(2)) + '\', \'' + payLink + '\')" title="Enviar Cobro por WhatsApp" class="bg-emerald-600/30 hover:bg-emerald-600 text-emerald-300 hover:text-white text-[10px] font-bold px-2 py-1 rounded-lg transition">📲 WA</button>',
-            '  <button onclick="toggleTenant(\'' + t.id + '\', \'' + (t.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE') + '\')" title="Bloqueo / Desbloqueo Remoto" class="' + (t.status === 'ACTIVE' ? 'bg-amber-600/20 hover:bg-amber-600 text-amber-300' : 'bg-emerald-600/20 hover:bg-emerald-600 text-emerald-300') + ' border border-slate-700 text-[10px] font-bold px-2 py-1 rounded-lg transition">' + (t.status === 'ACTIVE' ? '🚫 Kill' : '🔓 Activar') + '</button>',
-            '  <button onclick="deleteTenant(\'' + t.id + '\', \'' + (t.name || '').replace(/'/g, "") + '\')" title="Eliminar Supermercado" class="bg-rose-950 hover:bg-rose-800 text-rose-300 hover:text-white border border-rose-800 text-[10px] font-bold px-2.5 py-1 rounded-lg transition">🗑️ Eliminar</button>',
+            '  <button onclick="openEditModulesModal(\\\'' + t.id + '\\\')" title="Editar Módulos y Límites" class="bg-indigo-600/30 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-500/40 text-[10px] font-bold px-2 py-1 rounded-lg transition">✏️ Módulos</button>',
+            '  <button onclick="copyPayLink(\\\'' + payLink + '\\\')" title="Copiar Enlace de Pago" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-bold px-2 py-1 rounded-lg transition">🔗 Link</button>',
+            '  <button onclick="sendWhatsappBill(\\\'' + t.id + '\\\')" title="Enviar Cobro por WhatsApp" class="bg-emerald-600/30 hover:bg-emerald-600 text-emerald-300 hover:text-white text-[10px] font-bold px-2 py-1 rounded-lg transition">📲 WA</button>',
+            '  <button onclick="toggleTenant(\\\'' + t.id + '\\\', \\\'' + (t.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE') + '\\\')" title="Bloqueo / Desbloqueo Remoto" class="' + (t.status === 'ACTIVE' ? 'bg-amber-600/20 hover:bg-amber-600 text-amber-300' : 'bg-emerald-600/20 hover:bg-emerald-600 text-emerald-300') + ' border border-slate-700 text-[10px] font-bold px-2 py-1 rounded-lg transition">' + (t.status === 'ACTIVE' ? '🚫 Kill' : '🔓 Activar') + '</button>',
+            '  <button onclick="deleteTenant(\\\'' + t.id + '\\\')" title="Eliminar Supermercado" class="bg-rose-950 hover:bg-rose-800 text-rose-300 hover:text-white border border-rose-800 text-[10px] font-bold px-2.5 py-1 rounded-lg transition">🗑️ Eliminar</button>',
             '</td>'
           ].join('');
           tbody.appendChild(tr);
@@ -1252,7 +1252,9 @@ app.get('/', (req, res) => {
       } catch (e) {}
     }
 
-    async function deleteTenant(tenantId, name) {
+    async function deleteTenant(tenantId) {
+      var tenant = rawTenants.find(function(t) { return t.id === tenantId; });
+      var name = tenant ? tenant.name : tenantId;
       if (!confirm('⚠️ ¿Estás seguro de que deseas eliminar permanentemente el supermercado "' + name + '"?\\n\\nEsta acción no se puede deshacer.')) return;
       try {
         var res = await fetch('/api/cloud/admin/delete-tenant', {
@@ -1272,12 +1274,9 @@ app.get('/', (req, res) => {
 
     function deleteCurrentTenantFromModal() {
       var tenantId = document.getElementById('em-tenant-id').value;
-      var name = document.getElementById('em-name').value;
       if (!tenantId) return;
-      if (confirm('⚠️ ¿Estás completamente seguro de que deseas eliminar permanentemente a "' + name + '" (ID: ' + tenantId + ')?\\n\\nEsta acción no se puede deshacer.')) {
-        closeEditModulesModal();
-        deleteTenant(tenantId, name);
-      }
+      closeEditModulesModal();
+      deleteTenant(tenantId);
     }
 
     function openEditModulesModal(tenantId) {
@@ -1382,7 +1381,7 @@ app.get('/', (req, res) => {
               '<td class="py-3 px-4"><span class="font-bold">' + p.paymentMethod + '</span> <div class="font-mono text-slate-400 text-[10px]">Ref: ' + p.referenceNumber + '</div></td>',
               '<td class="py-3 px-4">' + (p.voucherBase64 ? '<a href="' + p.voucherBase64 + '" target="_blank" class="text-sky-400 underline font-bold">Ver Voucher</a>' : 'Sin imagen') + '</td>',
               '<td class="py-3 px-4 text-right">',
-              '  <button onclick="approvePayment(\'' + p.id + '\')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1 rounded-xl text-xs">✅ Aprobar</button>',
+              '  <button onclick="approvePayment(\\\'' + p.id + '\\\')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1 rounded-xl text-xs">✅ Aprobar</button>',
               '</td>'
             ].join('');
             tbody.appendChild(tr);
@@ -1417,7 +1416,15 @@ app.get('/', (req, res) => {
       alert('📋 Enlace de pago copiado al portapapeles:\\n' + url);
     }
 
-    function sendWhatsappBill(name, phone, usd, ves, payUrl) {
+    function sendWhatsappBill(tenantId) {
+      var tenant = rawTenants.find(function(t) { return t.id === tenantId; });
+      if (!tenant) return;
+      var bcv = parseFloat(document.getElementById('bcv-val').innerText) || 854.46;
+      var name = tenant.name || 'Supermercado';
+      var phone = tenant.contactPhone || '';
+      var usd = tenant.monthlyPrice || 60;
+      var ves = (usd * bcv).toFixed(2);
+      var payUrl = window.location.origin + '/pay/' + tenant.id;
       var cleanPhone = (phone || '').replace(/[^0-9]/g, '');
       var text = encodeURIComponent(
         '👋 Estimado cliente de ' + name + ':\\n\\n' +
