@@ -529,7 +529,6 @@ app.get('/pay/:tenantId', (req, res) => {
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen selection:bg-sky-500 selection:text-white py-6 px-3 sm:px-6">
   <div class="max-w-2xl mx-auto space-y-6">
-    <!-- Header -->
     <header class="flex items-center justify-between bg-slate-900/80 backdrop-blur border border-slate-800 p-4 sm:p-5 rounded-2xl shadow-xl">
       <div class="flex items-center gap-3">
         <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-500 to-emerald-500 flex items-center justify-center font-black text-xl shadow-lg shadow-sky-500/20">⚡</div>
@@ -544,7 +543,6 @@ app.get('/pay/:tenantId', (req, res) => {
       </div>
     </header>
 
-    <!-- Resumen del Comercio -->
     <div class="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-800 rounded-3xl p-5 sm:p-6 shadow-2xl relative overflow-hidden">
       <div class="absolute -right-8 -top-8 w-32 h-32 bg-sky-500/10 rounded-full blur-2xl"></div>
       <div class="flex flex-wrap items-center justify-between gap-4 relative z-10">
@@ -560,9 +558,7 @@ app.get('/pay/:tenantId', (req, res) => {
       </div>
     </div>
 
-    <!-- Opciones de Pago (Cuentas Receptoras Oficiales) -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <!-- Pago Móvil -->
       <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3">
         <div class="flex items-center justify-between">
           <span class="font-bold text-xs uppercase tracking-wider text-sky-400 flex items-center gap-1.5">
@@ -578,7 +574,6 @@ app.get('/pay/:tenantId', (req, res) => {
         </div>
       </div>
 
-      <!-- Binance Pay / USDT -->
       <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3">
         <div class="flex items-center justify-between">
           <span class="font-bold text-xs uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
@@ -596,7 +591,6 @@ app.get('/pay/:tenantId', (req, res) => {
     </div>
 
     ${cfg.binanceQrBase64 ? `
-    <!-- Código QR Oficial Binance -->
     <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 text-center space-y-3">
       <span class="font-bold text-xs uppercase tracking-wider text-amber-400 block">Escanear QR Binance Pay</span>
       <div class="inline-block p-2 bg-white rounded-2xl shadow-xl">
@@ -606,7 +600,6 @@ app.get('/pay/:tenantId', (req, res) => {
     </div>
     ` : ''}
 
-    <!-- Formulario de Reporte de Pago -->
     <div class="bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4">
       <h3 class="font-black text-sm text-white flex items-center gap-2">
         <span>🧾</span> Reportar Comprobante de Pago
@@ -724,7 +717,6 @@ app.get('/', (req, res) => {
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen selection:bg-sky-500 selection:text-white">
 
-  <!-- PUERTA DE ACCESO SEGURO (LOGIN GATE SUPERADMIN) -->
   <div id="login-gate" class="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-lg flex items-center justify-center p-4">
     <div class="max-w-md w-full bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl text-center space-y-6">
       <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-sky-600 to-emerald-500 flex items-center justify-center font-black text-3xl shadow-xl shadow-sky-500/20 mx-auto">⚡</div>
@@ -748,9 +740,7 @@ app.get('/', (req, res) => {
     </div>
   </div>
 
-  <!-- CONTENEDOR PRINCIPAL DEL DASHBOARD (VISIBLE SOLO CON SESIÓN AUTORIZADA) -->
   <div id="main-dashboard" class="hidden">
-    <!-- Barra de Navegación Responsive -->
     <header class="border-b border-slate-800 bg-slate-900/90 sticky top-0 z-40 backdrop-blur">
       <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 flex flex-wrap items-center justify-between gap-3">
         <div class="flex items-center gap-2.5">
@@ -782,7 +772,6 @@ app.get('/', (req, res) => {
     </header>
 
     <main class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-6 space-y-6">
-      <!-- Métricas Principales -->
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <div class="bg-slate-900 border border-slate-800 p-4 sm:p-5 rounded-2xl">
           <div class="text-slate-400 text-[10px] sm:text-xs font-semibold uppercase tracking-wider">Supermercados</div>
@@ -806,7 +795,6 @@ app.get('/', (req, res) => {
         </div>
       </div>
 
-      <!-- Sección de Pagos Recibidos Pendientes -->
       <div id="pending-payments-section" class="bg-slate-900 border border-amber-800/40 rounded-2xl overflow-hidden shadow-xl hidden">
         <div class="px-4 sm:px-6 py-3.5 border-b border-slate-800 bg-amber-950/20 flex items-center justify-between">
           <div>
@@ -832,7 +820,6 @@ app.get('/', (req, res) => {
         </div>
       </div>
 
-      <!-- Tabla de Supermercados Conectados -->
       <div class="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl">
         <div class="p-4 sm:p-6 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -863,7 +850,6 @@ app.get('/', (req, res) => {
     </main>
   </div>
 
-  <!-- MODAL: NUEVO SUPERMERCADO -->
   <div id="newModal" class="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-3 hidden">
     <div class="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl max-w-lg w-full p-5 sm:p-6 space-y-4">
       <div class="flex justify-between items-center border-b border-slate-800 pb-3">
@@ -906,7 +892,6 @@ app.get('/', (req, res) => {
     </div>
   </div>
 
-  <!-- MODAL: CONFIGURACIÓN DE CUENTAS DE COBRO & CLAVE MAESTRA -->
   <div id="configModal" class="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-3 hidden">
     <div class="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl max-w-lg w-full p-5 sm:p-6 space-y-4 max-h-[92vh] overflow-y-auto custom-scroll">
       <div class="flex justify-between items-center border-b border-slate-800 pb-3">
@@ -914,7 +899,6 @@ app.get('/', (req, res) => {
         <button onclick="closeConfigModal()" class="text-slate-400 hover:text-white text-lg">✕</button>
       </div>
       <form onsubmit="saveConfig(event)" class="space-y-4 text-xs">
-        <!-- Clave Maestra SuperAdmin -->
         <div class="space-y-2 bg-slate-950 p-4 rounded-xl border border-rose-900/40">
           <span class="font-bold text-rose-400 text-[11px] uppercase tracking-wider block">🔐 Clave Maestra de Acceso SuperAdmin</span>
           <div>
@@ -974,7 +958,6 @@ app.get('/', (req, res) => {
     </div>
   </div>
 
-  <!-- MODAL: EDITAR PERMISOS DE MÓDULOS & DETALLES DEL SUPERMERCADO -->
   <div id="editModulesModal" class="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-3 hidden">
     <div class="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl max-w-2xl w-full p-5 sm:p-6 space-y-4 max-h-[92vh] overflow-y-auto custom-scroll">
       <div class="flex justify-between items-center border-b border-slate-800 pb-3">
@@ -1025,7 +1008,6 @@ app.get('/', (req, res) => {
           </div>
         </div>
 
-        <!-- MÓDULOS ACTIVADOS / DESACTIVADOS -->
         <div>
           <div class="flex justify-between items-center mb-2">
             <span class="font-bold text-white uppercase text-[11px] tracking-wider">Módulos Autorizados en Local POS:</span>
@@ -1045,12 +1027,12 @@ app.get('/', (req, res) => {
   </div>
 
   <script>
-    let rawTenants = [];
-    let qrBase64Temp = '';
-    const availableModules = ${JSON.stringify(ALL_AVAILABLE_MODULES)};
+    var rawTenants = [];
+    var qrBase64Temp = '';
+    var availableModules = ${JSON.stringify(ALL_AVAILABLE_MODULES)};
 
     function checkAdminAuth() {
-      const token = sessionStorage.getItem('superpos_admin_token');
+      var token = sessionStorage.getItem('superpos_admin_token');
       if (!token) {
         document.getElementById('login-gate').classList.remove('hidden');
         document.getElementById('main-dashboard').classList.add('hidden');
@@ -1064,20 +1046,20 @@ app.get('/', (req, res) => {
 
     async function handleSuperAdminLogin(e) {
       e.preventDefault();
-      const pass = (document.getElementById('admin-pass-input').value || '').trim();
-      const btn = document.getElementById('btn-login');
-      const errDiv = document.getElementById('login-err-msg');
+      var pass = (document.getElementById('admin-pass-input').value || '').trim();
+      var btn = document.getElementById('btn-login');
+      var errDiv = document.getElementById('login-err-msg');
       errDiv.classList.add('hidden');
       btn.disabled = true;
       btn.innerText = 'Verificando credenciales...';
 
       try {
-        const res = await fetch('/api/cloud/admin/login', {
+        var res = await fetch('/api/cloud/admin/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ password: pass })
         });
-        const data = await res.json();
+        var data = await res.json();
         if (data.success && data.token) {
           sessionStorage.setItem('superpos_admin_token', data.token);
           checkAdminAuth();
@@ -1101,8 +1083,8 @@ app.get('/', (req, res) => {
 
     async function syncBcvNow() {
       try {
-        const res = await fetch('/api/cloud/bcv-rate/sync-now', { method: 'POST' });
-        const data = await res.json();
+        var res = await fetch('/api/cloud/bcv-rate/sync-now', { method: 'POST' });
+        var data = await res.json();
         if (data.success) {
           document.getElementById('bcv-val').innerText = data.rate;
           alert('✅ Tasa BCV Oficial actualizada con éxito: ' + data.rate + ' Bs/USD');
@@ -1114,8 +1096,8 @@ app.get('/', (req, res) => {
 
     async function loadConfig() {
       try {
-        const res = await fetch('/api/cloud/system-config');
-        const data = await res.json();
+        var res = await fetch('/api/cloud/system-config');
+        var data = await res.json();
         document.getElementById('cfg-admin-secret').value = data.adminSecret || 'SuperPos2026!66*/-';
         document.getElementById('cfg-pm-bank').value = data.pagoMovilBank || '';
         document.getElementById('cfg-pm-phone').value = data.pagoMovilPhone || '';
@@ -1133,9 +1115,9 @@ app.get('/', (req, res) => {
     }
 
     function handleQrUpload(e) {
-      const file = e.target.files[0];
+      var file = e.target.files[0];
       if (!file) return;
-      const reader = new FileReader();
+      var reader = new FileReader();
       reader.onload = function(evt) {
         qrBase64Temp = evt.target.result;
         document.getElementById('cfg-qr-preview').src = qrBase64Temp;
@@ -1146,7 +1128,7 @@ app.get('/', (req, res) => {
 
     async function saveConfig(e) {
       e.preventDefault();
-      const body = {
+      var body = {
         adminSecret: document.getElementById('cfg-admin-secret').value.trim(),
         pagoMovilBank: document.getElementById('cfg-pm-bank').value,
         pagoMovilPhone: document.getElementById('cfg-pm-phone').value,
@@ -1158,12 +1140,12 @@ app.get('/', (req, res) => {
       };
 
       try {
-        const res = await fetch('/api/cloud/admin/update-config', {
+        var res = await fetch('/api/cloud/admin/update-config', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body)
         });
-        const data = await res.json();
+        var data = await res.json();
         if (data.success) {
           alert('✅ Configuración guardada correctamente.');
           closeConfigModal();
@@ -1175,15 +1157,15 @@ app.get('/', (req, res) => {
 
     async function loadTenants() {
       try {
-        const res = await fetch('/api/cloud/admin/tenants');
+        var res = await fetch('/api/cloud/admin/tenants');
         rawTenants = await res.json();
-        const tbody = document.getElementById('tenants-tbody');
+        var tbody = document.getElementById('tenants-tbody');
         tbody.innerHTML = '';
 
-        let active = 0, suspended = 0, revenue = 0;
-        const bcv = parseFloat(document.getElementById('bcv-val').innerText) || 854.46;
+        var active = 0, suspended = 0, revenue = 0;
+        var bcv = parseFloat(document.getElementById('bcv-val').innerText) || 854.46;
 
-        rawTenants.forEach(t => {
+        rawTenants.forEach(function(t) {
           if (t.status === 'ACTIVE') {
             active++;
             revenue += (t.monthlyPrice || 0);
@@ -1191,51 +1173,41 @@ app.get('/', (req, res) => {
             suspended++;
           }
 
-          const modulesCount = (t.enabledModules || availableModules.map(m => m.id)).length;
-          const payLink = window.location.origin + '/pay/' + t.id;
+          var modulesCount = (t.enabledModules || availableModules.map(function(m) { return m.id; })).length;
+          var payLink = window.location.origin + '/pay/' + t.id;
 
-          const tr = document.createElement('tr');
+          var tr = document.createElement('tr');
           tr.className = 'hover:bg-slate-800/40 transition';
-          tr.innerHTML = `
-            <td class="py-3 px-4 sm:px-6">
-              <div class="font-bold text-white text-xs sm:text-sm">\${t.name}</div>
-              <div class="text-[11px] font-mono text-slate-400">\${t.rif} • \${t.city || 'Venezuela'}</div>
-            </td>
-            <td class="py-3 px-4">
-              <span class="font-mono font-bold text-emerald-400 text-xs">$\${t.monthlyPrice || 0} USD</span>
-              <span class="text-[10px] text-slate-400 block font-bold">\${t.plan}</span>
-            </td>
-            <td class="py-3 px-4">
-              <span class="bg-sky-950 text-sky-300 border border-sky-800 px-2 py-0.5 rounded-lg text-[10px] font-bold">
-                \${modulesCount} / \${availableModules.length} Módulos
-              </span>
-            </td>
-            <td class="py-3 px-4">
-              <span class="\${t.status === 'ACTIVE' ? 'bg-emerald-950 text-emerald-300 border-emerald-800' : 'bg-rose-950 text-rose-300 border-rose-800'} border px-2 py-0.5 rounded-full text-[10px] font-extrabold">
-                \${t.status === 'ACTIVE' ? 'ACTIVO' : 'SUSPENDIDO'}
-              </span>
-            </td>
-            <td class="py-3 px-4 font-mono text-[11px] text-slate-300">
-              \${t.nextDueDate ? new Date(t.nextDueDate).toLocaleDateString() : 'N/A'}
-            </td>
-            <td class="py-3 px-4 text-right space-x-1">
-              <button onclick="openEditModulesModal('\${t.id}')" title="Editar Módulos y Límites" class="bg-indigo-600/30 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-500/40 text-[10px] font-bold px-2 py-1 rounded-lg transition">
-                ✏️ Módulos
-              </button>
-              <button onclick="copyPayLink('\${payLink}')" title="Copiar Enlace de Pago" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-bold px-2 py-1 rounded-lg transition">
-                🔗 Link
-              </button>
-              <button onclick="sendWhatsappBill('\${t.name}', '\${t.contactPhone}', '\${t.monthlyPrice || 60}', '\${((t.monthlyPrice || 60)*bcv).toFixed(2)}', '\${payLink}')" title="Enviar Cobro por WhatsApp" class="bg-emerald-600/30 hover:bg-emerald-600 text-emerald-300 hover:text-white text-[10px] font-bold px-2 py-1 rounded-lg transition">
-                📲 WA
-              </button>
-              <button onclick="toggleTenant('\${t.id}', '\${t.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE'}')" title="Bloqueo / Desbloqueo Remoto" class="\${t.status === 'ACTIVE' ? 'bg-rose-600/20 hover:bg-rose-600 text-rose-300' : 'bg-emerald-600/20 hover:bg-emerald-600 text-emerald-300'} border border-slate-700 text-[10px] font-bold px-2 py-1 rounded-lg transition">
-                \${t.status === 'ACTIVE' ? '🚫 Kill' : '🔓 Activar'}
-              </button>
-              <button onclick="deleteTenant('\${t.id}', '\${t.name}')" title="Eliminar Supermercado" class="bg-red-900/40 hover:bg-red-700 text-rose-300 hover:text-white border border-rose-800 text-[10px] font-bold px-2 py-1 rounded-lg transition">
-                🗑️
-              </button>
-            </td>
-          `;
+          tr.innerHTML = [
+            '<td class="py-3 px-4 sm:px-6">',
+            '  <div class="font-bold text-white text-xs sm:text-sm">' + (t.name || '') + '</div>',
+            '  <div class="text-[11px] font-mono text-slate-400">' + (t.rif || '') + ' • ' + (t.city || 'Venezuela') + '</div>',
+            '</td>',
+            '<td class="py-3 px-4">',
+            '  <span class="font-mono font-bold text-emerald-400 text-xs">$' + (t.monthlyPrice || 0) + ' USD</span>',
+            '  <span class="text-[10px] text-slate-400 block font-bold">' + (t.plan || 'PROFESIONAL') + '</span>',
+            '</td>',
+            '<td class="py-3 px-4">',
+            '  <span class="bg-sky-950 text-sky-300 border border-sky-800 px-2 py-0.5 rounded-lg text-[10px] font-bold">',
+            '    ' + modulesCount + ' / ' + availableModules.length + ' Módulos',
+            '  </span>',
+            '</td>',
+            '<td class="py-3 px-4">',
+            '  <span class="' + (t.status === 'ACTIVE' ? 'bg-emerald-950 text-emerald-300 border-emerald-800' : 'bg-rose-950 text-rose-300 border-rose-800') + ' border px-2 py-0.5 rounded-full text-[10px] font-extrabold">',
+            '    ' + (t.status === 'ACTIVE' ? 'ACTIVO' : 'SUSPENDIDO'),
+            '  </span>',
+            '</td>',
+            '<td class="py-3 px-4 font-mono text-[11px] text-slate-300">',
+            '  ' + (t.nextDueDate ? new Date(t.nextDueDate).toLocaleDateString() : 'N/A'),
+            '</td>',
+            '<td class="py-3 px-4 text-right space-x-1">',
+            '  <button onclick="openEditModulesModal(\'' + t.id + '\')" title="Editar Módulos y Límites" class="bg-indigo-600/30 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-500/40 text-[10px] font-bold px-2 py-1 rounded-lg transition">✏️ Módulos</button>',
+            '  <button onclick="copyPayLink(\'' + payLink + '\')" title="Copiar Enlace de Pago" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-bold px-2 py-1 rounded-lg transition">🔗 Link</button>',
+            '  <button onclick="sendWhatsappBill(\'' + (t.name || '').replace(/'/g, "") + '\', \'' + (t.contactPhone || '') + '\', \'' + (t.monthlyPrice || 60) + '\', \'' + (((t.monthlyPrice || 60)*bcv).toFixed(2)) + '\', \'' + payLink + '\')" title="Enviar Cobro por WhatsApp" class="bg-emerald-600/30 hover:bg-emerald-600 text-emerald-300 hover:text-white text-[10px] font-bold px-2 py-1 rounded-lg transition">📲 WA</button>',
+            '  <button onclick="toggleTenant(\'' + t.id + '\', \'' + (t.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE') + '\')" title="Bloqueo / Desbloqueo Remoto" class="' + (t.status === 'ACTIVE' ? 'bg-rose-600/20 hover:bg-rose-600 text-rose-300' : 'bg-emerald-600/20 hover:bg-emerald-600 text-emerald-300') + ' border border-slate-700 text-[10px] font-bold px-2 py-1 rounded-lg transition">' + (t.status === 'ACTIVE' ? '🚫 Kill' : '🔓 Activar') + '</button>',
+            '  <button onclick="deleteTenant(\'' + t.id + '\', \'' + (t.name || '').replace(/'/g, "") + '\')" title="Eliminar Supermercado" class="bg-red-900/40 hover:bg-red-700 text-rose-300 hover:text-white border border-rose-800 text-[10px] font-bold px-2 py-1 rounded-lg transition">🗑️</button>',
+            '</td>'
+          ].join('');
           tbody.appendChild(tr);
         });
 
@@ -1249,12 +1221,12 @@ app.get('/', (req, res) => {
     async function deleteTenant(tenantId, name) {
       if (!confirm('⚠️ ¿Estás seguro de que deseas eliminar permanentemente el supermercado "' + name + '"?\\n\\nEsta acción no se puede deshacer.')) return;
       try {
-        const res = await fetch('/api/cloud/admin/delete-tenant', {
+        var res = await fetch('/api/cloud/admin/delete-tenant', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tenantId })
+          body: JSON.stringify({ tenantId: tenantId })
         });
-        const data = await res.json();
+        var data = await res.json();
         if (data.success) {
           alert('🗑️ Supermercado eliminado con éxito.');
           loadTenants();
@@ -1265,7 +1237,7 @@ app.get('/', (req, res) => {
     }
 
     function openEditModulesModal(tenantId) {
-      const tenant = rawTenants.find(t => t.id === tenantId);
+      var tenant = rawTenants.find(function(t) { return t.id === tenantId; });
       if (!tenant) return;
 
       document.getElementById('em-tenant-id').value = tenant.id;
@@ -1277,23 +1249,23 @@ app.get('/', (req, res) => {
       document.getElementById('em-max-workstations').value = tenant.maxWorkstations || 4;
       document.getElementById('em-company-subtitle').innerText = tenant.name + ' (' + tenant.rif + ')';
 
-      const currentEnabled = Array.isArray(tenant.enabledModules) ? tenant.enabledModules : availableModules.map(m => m.id);
-      const grid = document.getElementById('em-modules-grid');
+      var currentEnabled = Array.isArray(tenant.enabledModules) ? tenant.enabledModules : availableModules.map(function(m) { return m.id; });
+      var grid = document.getElementById('em-modules-grid');
       grid.innerHTML = '';
 
-      availableModules.forEach(mod => {
-        const isChecked = currentEnabled.includes(mod.id);
-        const div = document.createElement('label');
+      availableModules.forEach(function(mod) {
+        var isChecked = currentEnabled.includes(mod.id);
+        var div = document.createElement('label');
         div.className = 'flex items-start gap-2 p-2 rounded-lg bg-slate-900 border border-slate-800 hover:border-slate-700 cursor-pointer transition';
-        div.innerHTML = `
-          <input type="checkbox" name="module_checkbox" value="\${mod.id}" \${isChecked ? 'checked' : ''} class="mt-0.5 rounded text-sky-600">
-          <div class="leading-tight">
-            <span class="font-bold text-white text-xs flex items-center gap-1.5">
-              <span>\${mod.icon}</span> \${mod.name}
-            </span>
-            <span class="text-[10px] text-slate-400 block mt-0.5">\${mod.desc}</span>
-          </div>
-        `;
+        div.innerHTML = [
+          '<input type="checkbox" name="module_checkbox" value="' + mod.id + '" ' + (isChecked ? 'checked' : '') + ' class="mt-0.5 rounded text-sky-600">',
+          '<div class="leading-tight">',
+          '  <span class="font-bold text-white text-xs flex items-center gap-1.5">',
+          '    <span>' + mod.icon + '</span> ' + mod.name,
+          '  </span>',
+          '  <span class="text-[10px] text-slate-400 block mt-0.5">' + mod.desc + '</span>',
+          '</div>'
+        ].join('');
         grid.appendChild(div);
       });
 
@@ -1305,17 +1277,17 @@ app.get('/', (req, res) => {
     }
 
     function toggleAllModules(enable) {
-      const checkboxes = document.querySelectorAll('#em-modules-grid input[type="checkbox"]');
-      checkboxes.forEach(cb => cb.checked = enable);
+      var checkboxes = document.querySelectorAll('#em-modules-grid input[type="checkbox"]');
+      checkboxes.forEach(function(cb) { cb.checked = enable; });
     }
 
     async function saveTenantModules(e) {
       e.preventDefault();
-      const tenantId = document.getElementById('em-tenant-id').value;
-      const selected = [];
-      document.querySelectorAll('#em-modules-grid input[type="checkbox"]:checked').forEach(cb => selected.push(cb.value));
+      var tenantId = document.getElementById('em-tenant-id').value;
+      var selected = [];
+      document.querySelectorAll('#em-modules-grid input[type="checkbox"]:checked').forEach(function(cb) { selected.push(cb.value); });
 
-      const body = {
+      var body = {
         id: tenantId,
         name: document.getElementById('em-name').value,
         rif: document.getElementById('em-rif').value,
@@ -1327,12 +1299,12 @@ app.get('/', (req, res) => {
       };
 
       try {
-        const res = await fetch('/api/cloud/admin/update-tenant', {
+        var res = await fetch('/api/cloud/admin/update-tenant', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body)
         });
-        const data = await res.json();
+        var data = await res.json();
         if (data.success) {
           alert('✅ Configuración y permisos guardados con éxito. Se sincronizarán con el supermercado.');
           closeEditModulesModal();
@@ -1345,31 +1317,29 @@ app.get('/', (req, res) => {
 
     async function loadPayments() {
       try {
-        const res = await fetch('/api/cloud/admin/payments');
-        const payments = await res.json();
-        const pending = payments.filter(p => p.status === 'PENDING');
+        var res = await fetch('/api/cloud/admin/payments');
+        var payments = await res.json();
+        var pending = payments.filter(function(p) { return p.status === 'PENDING'; });
         document.getElementById('stat-pending-payments').innerText = pending.length;
 
-        const section = document.getElementById('pending-payments-section');
-        const tbody = document.getElementById('payments-tbody');
+        var section = document.getElementById('pending-payments-section');
+        var tbody = document.getElementById('payments-tbody');
         tbody.innerHTML = '';
 
         if (pending.length > 0) {
           section.classList.remove('hidden');
-          pending.forEach(p => {
-            const tr = document.createElement('tr');
+          pending.forEach(function(p) {
+            var tr = document.createElement('tr');
             tr.className = 'hover:bg-slate-800/40';
-            tr.innerHTML = `
-              <td class="py-3 px-4 font-bold text-white">\${p.tenantId}</td>
-              <td class="py-3 px-4 text-emerald-400 font-black">$\${p.amountUsd} <span class="text-slate-400 block font-normal text-[10px]">Bs. \${p.amountVes}</span></td>
-              <td class="py-3 px-4"><span class="font-bold">\${p.paymentMethod}</span> <div class="font-mono text-slate-400 text-[10px]">Ref: \${p.referenceNumber}</div></td>
-              <td class="py-3 px-4">
-                \${p.voucherBase64 ? \`<a href="\${p.voucherBase64}" target="_blank" class="text-sky-400 underline font-bold">Ver Voucher</a>\` : 'Sin imagen'}
-              </td>
-              <td class="py-3 px-4 text-right">
-                <button onclick="approvePayment('\${p.id}')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1 rounded-xl text-xs">✅ Aprobar</button>
-              </td>
-            `;
+            tr.innerHTML = [
+              '<td class="py-3 px-4 font-bold text-white">' + p.tenantId + '</td>',
+              '<td class="py-3 px-4 text-emerald-400 font-black">$' + p.amountUsd + ' <span class="text-slate-400 block font-normal text-[10px]">Bs. ' + p.amountVes + '</span></td>',
+              '<td class="py-3 px-4"><span class="font-bold">' + p.paymentMethod + '</span> <div class="font-mono text-slate-400 text-[10px]">Ref: ' + p.referenceNumber + '</div></td>',
+              '<td class="py-3 px-4">' + (p.voucherBase64 ? '<a href="' + p.voucherBase64 + '" target="_blank" class="text-sky-400 underline font-bold">Ver Voucher</a>' : 'Sin imagen') + '</td>',
+              '<td class="py-3 px-4 text-right">',
+              '  <button onclick="approvePayment(\'' + p.id + '\')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1 rounded-xl text-xs">✅ Aprobar</button>',
+              '</td>'
+            ].join('');
             tbody.appendChild(tr);
           });
         } else {
@@ -1381,12 +1351,12 @@ app.get('/', (req, res) => {
     async function approvePayment(paymentId) {
       if (!confirm('¿Confirma que ha verificado los fondos recibidos para aprobar esta renovación?')) return;
       try {
-        const res = await fetch('/api/cloud/admin/approve-payment', {
+        var res = await fetch('/api/cloud/admin/approve-payment', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ paymentId })
+          body: JSON.stringify({ paymentId: paymentId })
         });
-        const data = await res.json();
+        var data = await res.json();
         if (data.success) {
           alert('✅ ' + data.message);
           loadPayments();
@@ -1403,15 +1373,15 @@ app.get('/', (req, res) => {
     }
 
     function sendWhatsappBill(name, phone, usd, ves, payUrl) {
-      const cleanPhone = (phone || '').replace(/[^0-9]/g, '');
-      const text = encodeURIComponent(
+      var cleanPhone = (phone || '').replace(/[^0-9]/g, '');
+      var text = encodeURIComponent(
         '👋 Estimado cliente de ' + name + ':\\n\\n' +
         'Le recordamos el pago de su suscripción mensual de software SuperPOS SaaS.\\n\\n' +
         '💵 Monto: $' + usd + '.00 USD (Bs. ' + ves + ' a Tasa Oficial BCV)\\n' +
         '🔗 Portal de Pago Directo & Carga de Comprobante (Pago Móvil / Binance):\\n' + payUrl + '\\n\\n' +
         'Gracias por su confianza.'
       );
-      const waUrl = cleanPhone ? 'https://wa.me/' + cleanPhone + '?text=' + text : 'https://wa.me/?text=' + text;
+      var waUrl = cleanPhone ? 'https://wa.me/' + cleanPhone + '?text=' + text : 'https://wa.me/?text=' + text;
       window.open(waUrl, '_blank');
     }
 
@@ -1421,7 +1391,7 @@ app.get('/', (req, res) => {
         await fetch('/api/cloud/admin/toggle-status', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tenantId, status: newStatus })
+          body: JSON.stringify({ tenantId: tenantId, status: newStatus })
         });
         loadTenants();
       } catch (e) {
@@ -1436,7 +1406,7 @@ app.get('/', (req, res) => {
 
     async function createTenant(e) {
       e.preventDefault();
-      const body = {
+      var body = {
         name: document.getElementById('t-name').value,
         rif: document.getElementById('t-rif').value,
         city: document.getElementById('t-city').value,
@@ -1452,7 +1422,6 @@ app.get('/', (req, res) => {
       loadTenants();
     }
 
-    // Check auth on load
     checkAdminAuth();
   </script>
 </body>
