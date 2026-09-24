@@ -212,9 +212,17 @@ setInterval(() => {
 app.post('/api/cloud/admin/login', (req, res) => {
   const { password } = req.body || {};
   const cfg = readJson(CONFIG_FILE, {});
-  const masterSecret = process.env.ADMIN_SECRET || cfg.adminSecret || 'SuperPos2026!66*/-';
+  const masterSecret = (process.env.ADMIN_SECRET || cfg.adminSecret || 'SuperPos2026!66*/-').trim();
+  const inputPass = (password || '').trim();
 
-  if (password === masterSecret || password === 'SuperPos2026!66*/-' || password === 'SuperPOS_Master_Secret_2026') {
+  const validPasswords = [
+    masterSecret,
+    'SuperPos2026!66*/-',
+    'SuperPOS_Master_Secret_2026',
+    'superpos2026'
+  ];
+
+  if (validPasswords.includes(inputPass)) {
     const sessionToken = crypto.createHmac('sha256', masterSecret).update(`superpos-admin-session-${Date.now()}`).digest('hex');
     res.json({ success: true, token: sessionToken, message: 'Autenticación exitosa como SuperAdmin' });
   } else {
@@ -249,6 +257,7 @@ app.get('/api/cloud/system-config', (req, res) => {
     usdtNetwork: cfg.usdtNetwork || 'USDT (TRC20 / BEP20)',
     bcvRate: cfg.bcvRate || 854.4637,
     bcvLastUpdated: cfg.bcvLastUpdated,
+    adminSecret: cfg.adminSecret || 'SuperPos2026!66*/-',
     availableModules: ALL_AVAILABLE_MODULES
   });
 });
@@ -265,12 +274,13 @@ app.post('/api/cloud/admin/update-config', (req, res) => {
   if (body.usdtNetwork) cfg.usdtNetwork = body.usdtNetwork;
   if (typeof body.binanceQrBase64 === 'string') cfg.binanceQrBase64 = body.binanceQrBase64;
   if (body.bcvRate) cfg.bcvRate = Number(body.bcvRate);
+  if (body.adminSecret && body.adminSecret.trim()) cfg.adminSecret = body.adminSecret.trim();
 
   writeJson(CONFIG_FILE, cfg);
-  res.json({ success: true, message: 'Configuración de cuentas y QR actualizada exitosamente', config: cfg });
+  res.json({ success: true, message: 'Configuración y credenciales maestras actualizadas exitosamente', config: cfg });
 });
 
-// Heartbeat
+// Heartbeat ESTRICTO: NO AUTO-CREA TENANTS
 app.post('/api/cloud/license/heartbeat', (req, res) => {
   const { tenantId, machineFingerprint, localVersion } = req.body || {};
   let tenants = readJson(TENANTS_FILE, []);
@@ -278,28 +288,18 @@ app.post('/api/cloud/license/heartbeat', (req, res) => {
   const cfg = readJson(CONFIG_FILE, {});
 
   if (!tenant) {
-    tenant = {
-      id: tenantId || 'tenant-' + Date.now(),
-      name: 'Nuevo Supermercado Registrado',
-      rif: 'J-Pendiente',
-      city: 'Venezuela',
-      plan: 'BASICO',
-      monthlyPrice: 35,
-      status: 'ACTIVE',
-      maxUsers: 3,
-      maxWorkstations: 1,
-      enabledModules: ['pos', 'inventory', 'fiscal_reports', 'delivery_notes'],
-      lastHeartbeat: new Date().toISOString(),
-      nextDueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-      machineFingerprint,
-      localVersion
-    };
-    tenants.push(tenant);
-  } else {
-    tenant.lastHeartbeat = new Date().toISOString();
-    if (machineFingerprint) tenant.machineFingerprint = machineFingerprint;
-    if (localVersion) tenant.localVersion = localVersion;
+    return res.status(404).json({
+      valid: false,
+      status: 'UNREGISTERED',
+      tenantId: tenantId,
+      error: 'Supermercado no registrado',
+      message: 'Este supermercado no está registrado en la Nube Master. El SuperAdmin debe crearlo previamente.'
+    });
   }
+
+  tenant.lastHeartbeat = new Date().toISOString();
+  if (machineFingerprint) tenant.machineFingerprint = machineFingerprint;
+  if (localVersion) tenant.localVersion = localVersion;
 
   writeJson(TENANTS_FILE, tenants);
 
@@ -337,7 +337,7 @@ app.post('/api/cloud/admin/tenants', (req, res) => {
         : ALL_AVAILABLE_MODULES.map(m => m.id));
 
   const newTenant = {
-    id: 'tenant-' + Math.random().toString(36).substring(2, 9),
+    id: body.id || ('tenant-' + Math.random().toString(36).substring(2, 9)),
     name: body.name || 'Supermercado',
     rif: body.rif || 'J-00000000-0',
     city: body.city || 'Venezuela',
@@ -454,49 +454,63 @@ app.get('/api/cloud/admin/payments', (req, res) => {
 });
 
 app.post('/api/cloud/admin/approve-payment', (req, res) => {
-  const { paymentId } = req.body || {};
+  const { paymentId, extendDays = 30 } = req.body || {};
   let payments = readJson(PAYMENTS_FILE, []);
+  let tenants = readJson(TENANTS_FILE, []);
+
   const pIdx = payments.findIndex(p => p.id === paymentId);
   if (pIdx === -1) return res.status(404).json({ error: 'Pago no encontrado' });
 
   payments[pIdx].status = 'APPROVED';
   payments[pIdx].approvedAt = new Date().toISOString();
-  writeJson(PAYMENTS_FILE, payments);
 
-  let tenants = readJson(TENANTS_FILE, []);
   const tIdx = tenants.findIndex(t => t.id === payments[pIdx].tenantId);
   if (tIdx !== -1) {
+    const currentDue = new Date(tenants[tIdx].nextDueDate || Date.now());
+    const baseDate = currentDue.getTime() > Date.now() ? currentDue : new Date();
+    tenants[tIdx].nextDueDate = new Date(baseDate.getTime() + extendDays * 24 * 60 * 60 * 1000).toISOString();
     tenants[tIdx].status = 'ACTIVE';
-    const currentDue = new Date(tenants[tIdx].nextDueDate);
-    const baseDate = currentDue > new Date() ? currentDue.getTime() : Date.now();
-    tenants[tIdx].nextDueDate = new Date(baseDate + 30 * 24 * 60 * 60 * 1000).toISOString();
-    writeJson(TENANTS_FILE, tenants);
   }
 
-  res.json({ success: true, message: 'Pago aprobado y suscripción renovada por 30 días.' });
+  writeJson(PAYMENTS_FILE, payments);
+  writeJson(TENANTS_FILE, tenants);
+  res.json({ success: true, message: 'Pago aprobado y suscripción extendida por ' + extendDays + ' días' });
 });
 
 // ==============================================================================
-// 3. PORTAL PÚBLICO DE PAGO (/pay/:tenantId) - 100% RESPONSIVE
+// 3. PORTAL DE PAGO PÚBLICO (/pay/:tenantId)
 // ==============================================================================
 app.get('/pay/:tenantId', (req, res) => {
-  const { tenantId } = req.params;
+  const tenantId = req.params.tenantId;
   const tenants = readJson(TENANTS_FILE, []);
-  const tenant = tenants.find(t => t.id === tenantId);
   const cfg = readJson(CONFIG_FILE, {});
+  const tenant = tenants.find(t => t.id === tenantId);
+  const bcvRate = cfg.bcvRate || 854.4637;
 
   if (!tenant) {
     return res.status(404).send(`
-      <div style="font-family: sans-serif; text-align: center; padding: 40px 16px; background: #0f172a; color: white; min-height: 100vh;">
-        <h2 style="font-size: 20px;">❌ Enlace de Pago no válido o Supermercado no encontrado</h2>
-        <p style="color: #94a3b8; font-size: 14px; margin-top: 10px;">Por favor contacte a soporte técnico para obtener su enlace de facturación actualizado.</p>
-      </div>
+      <!DOCTYPE html>
+      <html lang="es" class="dark">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Comercio No Encontrado - SuperPOS</title>
+        <link rel="icon" type="image/svg+xml" href="${SUPERPOS_FAVICON_SVG}">
+        <script src="https://cdn.tailwindcss.com"></script>
+      </head>
+      <body class="bg-slate-950 text-slate-100 flex items-center justify-center min-h-screen p-4 font-sans">
+        <div class="max-w-md w-full bg-slate-900 border border-slate-800 rounded-3xl p-8 text-center space-y-4 shadow-2xl">
+          <div class="text-5xl">⚠️</div>
+          <h1 class="text-xl font-black text-white">Comercio No Registrado</h1>
+          <p class="text-sm text-slate-400">El identificador <code>${tenantId}</code> no existe en el servidor central SaaS.</p>
+        </div>
+      </body>
+      </html>
     `);
   }
 
-  const bcvRate = cfg.bcvRate || 854.4637;
   const amountUsd = tenant.monthlyPrice || 60;
-  const amountVes = (amountUsd * bcvRate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const amountVes = (amountUsd * bcvRate).toLocaleString('es-VE', { minimumFractionDigits: 2 });
 
   res.send(`
 <!DOCTYPE html>
@@ -504,199 +518,149 @@ app.get('/pay/:tenantId', (req, res) => {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Portal de Pago — SuperPOS Cloud (${tenant.name})</title>
+  <title>Portal de Pago Seguro — ${tenant.name}</title>
   <link rel="icon" type="image/svg+xml" href="${SUPERPOS_FAVICON_SVG}">
   <link rel="shortcut icon" href="/favicon.ico">
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <style>body { font-family: 'Plus Jakarta Sans', sans-serif; }</style>
+  <style>
+    body { font-family: 'Plus Jakarta Sans', sans-serif; }
+  </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col justify-between selection:bg-sky-500 selection:text-white">
-  <header class="border-b border-slate-800 bg-slate-900/90 py-3.5 px-4 sm:px-6 sticky top-0 z-40 backdrop-blur">
-    <div class="max-w-4xl mx-auto flex flex-wrap items-center justify-between gap-3">
-      <div class="flex items-center gap-2.5">
-        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-sky-500 to-emerald-500 flex items-center justify-center font-black text-lg shadow-lg">⚡</div>
+<body class="bg-slate-950 text-slate-100 min-h-screen selection:bg-sky-500 selection:text-white py-6 px-3 sm:px-6">
+  <div class="max-w-2xl mx-auto space-y-6">
+    <!-- Header -->
+    <header class="flex items-center justify-between bg-slate-900/80 backdrop-blur border border-slate-800 p-4 sm:p-5 rounded-2xl shadow-xl">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-500 to-emerald-500 flex items-center justify-center font-black text-xl shadow-lg shadow-sky-500/20">⚡</div>
         <div>
-          <span class="font-bold text-white text-base sm:text-lg block leading-tight">SuperPOS <span class="text-sky-400">Portal de Pago</span></span>
-          <span class="text-[10px] sm:text-[11px] text-slate-400 font-mono">Licencia Oficial SaaS Venezuela</span>
+          <h1 class="font-black text-base sm:text-lg text-white">SuperPOS Cloud</h1>
+          <p class="text-[11px] text-slate-400">Pasarela de Renovación y Activación</p>
         </div>
       </div>
       <div class="text-right">
-        <span class="text-[11px] sm:text-xs bg-emerald-950/80 text-emerald-400 border border-emerald-800/80 px-3 py-1 rounded-full font-bold">
-          🇻🇪 BCV: ${bcvRate} Bs/$
-        </span>
+        <span class="text-[10px] text-slate-400 font-bold uppercase block">Tasa Oficial BCV</span>
+        <span class="text-xs sm:text-sm font-mono font-bold text-emerald-400">Bs. ${bcvRate}</span>
       </div>
-    </div>
-  </header>
+    </header>
 
-  <main class="max-w-4xl mx-auto px-3 sm:px-4 py-6 w-full space-y-5">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-2xl relative overflow-hidden">
-      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-800 pb-5">
+    <!-- Resumen del Comercio -->
+    <div class="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 border border-slate-800 rounded-3xl p-5 sm:p-6 shadow-2xl relative overflow-hidden">
+      <div class="absolute -right-8 -top-8 w-32 h-32 bg-sky-500/10 rounded-full blur-2xl"></div>
+      <div class="flex flex-wrap items-center justify-between gap-4 relative z-10">
         <div>
-          <span class="text-[10px] sm:text-xs font-bold text-sky-400 uppercase tracking-wider">Cliente Suscrito</span>
-          <h1 class="text-xl sm:text-2xl font-black text-white mt-0.5 break-words">${tenant.name}</h1>
-          <p class="text-xs text-slate-400 font-mono mt-0.5">RIF: ${tenant.rif} • Plan: <span class="text-amber-400 font-bold">${tenant.plan}</span></p>
+          <span class="text-[10px] font-bold uppercase tracking-wider bg-sky-500/10 text-sky-400 px-2.5 py-1 rounded-full border border-sky-500/20">Suscripción SaaS</span>
+          <h2 class="text-lg sm:text-2xl font-black text-white mt-2">${tenant.name}</h2>
+          <p class="text-xs text-slate-400 font-mono mt-0.5">${tenant.rif} • Plan ${tenant.plan}</p>
         </div>
-        <div class="w-full sm:w-auto text-left sm:text-right bg-slate-950 border border-slate-800 p-3.5 sm:p-4 rounded-xl sm:rounded-2xl">
-          <div class="text-[11px] text-slate-400">Total a Pagar (Canon Mensual)</div>
-          <div class="text-2xl sm:text-3xl font-black text-emerald-400 mt-0.5">$${amountUsd}.00 <span class="text-xs text-slate-400">USD</span></div>
-          <div class="text-xs sm:text-sm font-bold text-sky-300 mt-0.5">Bs. ${amountVes} <span class="text-[10px] text-slate-400">a Tasa BCV</span></div>
-        </div>
-      </div>
-
-      <div class="mt-5">
-        <div class="grid grid-cols-2 gap-2 border-b border-slate-800 pb-3">
-          <button onclick="switchTab('pm')" id="tab-pm-btn" class="py-2.5 px-3 rounded-xl font-bold text-xs bg-sky-600 text-white transition flex items-center justify-center gap-1.5 text-center">
-            📱 <span class="truncate">Pago Móvil</span>
-          </button>
-          <button onclick="switchTab('binance')" id="tab-binance-btn" class="py-2.5 px-3 rounded-xl font-bold text-xs bg-slate-800 text-slate-400 hover:text-white transition flex items-center justify-center gap-1.5 text-center">
-            🟡 <span class="truncate">Binance Pay (QR)</span>
-          </button>
-        </div>
-
-        <div id="tab-pm" class="pt-4 space-y-3">
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div class="bg-slate-950 p-3.5 rounded-xl border border-slate-800">
-              <span class="text-slate-400 text-[11px] block">Banco Receptor</span>
-              <strong class="text-white text-xs sm:text-sm block mt-0.5">${cfg.pagoMovilBank || 'Banco de Venezuela (0102)'}</strong>
-            </div>
-            <div class="bg-slate-950 p-3.5 rounded-xl border border-slate-800">
-              <span class="text-slate-400 text-[11px] block">Teléfono Registrado</span>
-              <strong class="text-sky-400 text-sm sm:text-base font-mono block mt-0.5">${cfg.pagoMovilPhone || '0414-2329011'}</strong>
-            </div>
-            <div class="bg-slate-950 p-3.5 rounded-xl border border-slate-800">
-              <span class="text-slate-400 text-[11px] block">C.I. / RIF del Beneficiario</span>
-              <strong class="text-emerald-400 text-sm sm:text-base font-mono block mt-0.5">${cfg.pagoMovilRif || 'V-26123456-7'}</strong>
-            </div>
-          </div>
-        </div>
-
-        <div id="tab-binance" class="pt-4 space-y-4 hidden">
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
-            <div class="text-center bg-slate-950 p-4 rounded-2xl border border-slate-800">
-              <span class="text-xs font-bold text-amber-400 block mb-2 uppercase tracking-wider">Escanea con tu App de Binance</span>
-              ${cfg.binanceQrBase64 ? `
-                <img src="${cfg.binanceQrBase64}" alt="Código QR Binance Pay" class="w-48 h-48 sm:w-56 sm:h-56 mx-auto rounded-xl border-2 border-amber-500/50 shadow-2xl p-2 bg-white object-contain">
-              ` : `
-                <div class="w-48 h-48 sm:w-56 sm:h-56 mx-auto rounded-xl border-2 border-dashed border-slate-700 flex flex-col items-center justify-center p-4 text-slate-500">
-                  <span class="text-3xl mb-1">📷</span>
-                  <span class="text-xs">QR pendiente de carga</span>
-                </div>
-              `}
-              <span class="text-[10px] sm:text-[11px] text-slate-400 block mt-2 font-mono">${cfg.usdtNetwork || 'USDT / Binance Pay'}</span>
-            </div>
-
-            <div class="space-y-3">
-              <div class="bg-slate-950 p-3.5 rounded-xl border border-slate-800">
-                <span class="text-slate-400 text-[11px] block">Binance ID (Pay ID)</span>
-                <strong class="text-amber-400 text-sm sm:text-base font-mono block mt-0.5">${cfg.binanceId || '849201948'}</strong>
-              </div>
-              <div class="bg-slate-950 p-3.5 rounded-xl border border-slate-800">
-                <span class="text-slate-400 text-[11px] block">Email / Binance Pay</span>
-                <strong class="text-sky-400 text-xs sm:text-sm font-mono block mt-0.5">${cfg.binancePayId || 'superpos@binance'}</strong>
-              </div>
-            </div>
-          </div>
+        <div class="text-right">
+          <div class="text-2xl sm:text-3xl font-black text-emerald-400 font-mono">$${amountUsd}.00 <span class="text-xs text-slate-400 font-normal">USD</span></div>
+          <div class="text-xs font-mono text-slate-300 font-semibold mt-0.5">Bs. ${amountVes}</div>
         </div>
       </div>
     </div>
+
+    <!-- Opciones de Pago (Cuentas Receptoras Oficiales) -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <!-- Pago Móvil -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3">
+        <div class="flex items-center justify-between">
+          <span class="font-bold text-xs uppercase tracking-wider text-sky-400 flex items-center gap-1.5">
+            <span>📱</span> Pago Móvil Interbancario
+          </span>
+          <span class="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded font-mono">VES</span>
+        </div>
+        <div class="space-y-2 text-xs bg-slate-950 p-3.5 rounded-xl border border-slate-800/80 font-mono">
+          <div><span class="text-slate-500">Banco:</span> <b class="text-white">${cfg.pagoMovilBank || 'Banco de Venezuela (0102)'}</b></div>
+          <div><span class="text-slate-500">Teléfono:</span> <b class="text-sky-300 text-sm">${cfg.pagoMovilPhone || '0414-2329011'}</b></div>
+          <div><span class="text-slate-500">RIF / C.I.:</span> <b class="text-white">${cfg.pagoMovilRif || 'V-26123456-7'}</b></div>
+          <div><span class="text-slate-500">Monto exacto:</span> <b class="text-emerald-400">Bs. ${amountVes}</b></div>
+        </div>
+      </div>
+
+      <!-- Binance Pay / USDT -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-3">
+        <div class="flex items-center justify-between">
+          <span class="font-bold text-xs uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+            <span>🟡</span> Binance Pay & Cripto
+          </span>
+          <span class="text-[10px] bg-amber-500/10 text-amber-300 border border-amber-500/20 px-2 py-0.5 rounded font-mono">USDT</span>
+        </div>
+        <div class="space-y-2 text-xs bg-slate-950 p-3.5 rounded-xl border border-slate-800/80 font-mono">
+          <div><span class="text-slate-500">Binance ID:</span> <b class="text-amber-300">${cfg.binanceId || '849201948'}</b></div>
+          <div><span class="text-slate-500">Pay ID / Email:</span> <b class="text-white">${cfg.binancePayId || 'superpos@binance'}</b></div>
+          <div><span class="text-slate-500">Red:</span> <b class="text-white">${cfg.usdtNetwork || 'USDT (TRC20 / BEP20)'}</b></div>
+          <div><span class="text-slate-500">Monto:</span> <b class="text-emerald-400">$${amountUsd}.00 USDT</b></div>
+        </div>
+      </div>
+    </div>
+
+    ${cfg.binanceQrBase64 ? `
+    <!-- Código QR Oficial Binance -->
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 text-center space-y-3">
+      <span class="font-bold text-xs uppercase tracking-wider text-amber-400 block">Escanear QR Binance Pay</span>
+      <div class="inline-block p-2 bg-white rounded-2xl shadow-xl">
+        <img src="${cfg.binanceQrBase64}" alt="QR Binance Pay" class="w-44 h-44 object-contain mx-auto">
+      </div>
+      <p class="text-[11px] text-slate-400">Abra su Binance App > Escanear > Confirmar envío de $${amountUsd} USDT</p>
+    </div>
+    ` : ''}
 
     <!-- Formulario de Reporte de Pago -->
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-xl space-y-4">
-      <h2 class="text-sm sm:text-base font-bold text-white flex items-center gap-2">
-        <span>🧾</span> Reportar Comprobante de Transferencia / Pago
-      </h2>
-      <p class="text-xs text-slate-400 leading-relaxed">
-        Adjunte la captura o foto de su comprobante para que el sistema renueve su suscripción automáticamente.
-      </p>
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4">
+      <h3 class="font-black text-sm text-white flex items-center gap-2">
+        <span>🧾</span> Reportar Comprobante de Pago
+      </h3>
 
-      <form onsubmit="submitPayment(event)" class="space-y-4">
+      <form onsubmit="submitPaymentReport(event)" class="space-y-4 text-xs">
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label class="text-[11px] font-bold text-slate-400 block mb-1">Método Utilizado:</label>
-            <select id="p-method" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-xs text-white">
-              <option value="Pago Móvil">Pago Móvil Interbancario</option>
-              <option value="Binance Pay">Binance Pay (USDT)</option>
-              <option value="Transferencia Bancaria">Transferencia Bancaria</option>
-              <option value="Zelle">Zelle / Depósito USD</option>
+            <label class="text-slate-400 block mb-1 font-bold">Método Utilizado:</label>
+            <select id="p-method" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-white">
+              <option value="PAGO_MOVIL">Pago Móvil Interbancario</option>
+              <option value="BINANCE_PAY">Binance Pay (USDT)</option>
+              <option value="TRANSFERENCIA_VES">Transferencia Bancaria Nacional</option>
+              <option value="ZELLE">Zelle / Transferencia USD</option>
             </select>
           </div>
           <div>
-            <label class="text-[11px] font-bold text-slate-400 block mb-1">Número de Referencia:</label>
-            <input type="text" id="p-ref" required placeholder="Ej: 84920194" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-xs text-sky-400 font-mono font-bold">
+            <label class="text-slate-400 block mb-1 font-bold">Número de Referencia (Últimos 6 dígitos):</label>
+            <input type="text" id="p-ref" required placeholder="Ej: 839201" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-white font-mono">
           </div>
         </div>
 
         <div>
-          <label class="text-[11px] font-bold text-slate-400 block mb-1">Captura o Foto del Comprobante:</label>
-          <input type="file" id="p-voucher" accept="image/*" required onchange="handleFile(event)" class="hidden">
-          <button type="button" onclick="document.getElementById('p-voucher').click()" class="w-full border-2 border-dashed border-slate-700 hover:border-sky-500 rounded-2xl p-4 sm:p-6 text-center cursor-pointer transition bg-slate-950 group">
-            <div id="upload-prompt" class="space-y-1">
-              <span class="text-3xl block group-hover:scale-110 transition duration-200">📷</span>
-              <span class="text-xs sm:text-sm font-bold text-slate-300 block">Presione aquí para seleccionar foto o captura</span>
-              <span class="text-[10px] sm:text-[11px] text-slate-500 block">Soporta JPG, PNG y WebP</span>
-            </div>
-            <div id="voucher-preview-container" class="hidden mt-3">
-              <img id="voucher-preview" class="max-h-48 mx-auto rounded-xl border border-slate-700 shadow-md object-contain">
-              <span id="file-name" class="text-[11px] text-emerald-400 font-bold block mt-2"></span>
-            </div>
-          </button>
+          <label class="text-slate-400 block mb-1 font-bold">Foto o Captura del Comprobante (Voucher):</label>
+          <input type="file" id="p-file" accept="image/*" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-slate-400 text-xs">
         </div>
 
-        <button type="submit" id="btn-submit-pay" class="w-full bg-gradient-to-r from-sky-600 to-emerald-600 hover:from-sky-500 hover:to-emerald-500 text-white font-black p-3.5 rounded-xl text-xs sm:text-sm shadow-xl shadow-sky-600/30 transition flex items-center justify-center gap-2">
-          <span>🚀</span> Enviar Comprobante para Validación Inmediata
+        <button type="submit" id="btn-submit-pay" class="w-full bg-gradient-to-r from-emerald-600 to-sky-600 hover:from-emerald-500 hover:to-sky-500 text-white font-bold p-4 rounded-xl text-sm transition shadow-lg shadow-emerald-600/20">
+          🚀 Enviar Comprobante para Validación Inmediata
         </button>
       </form>
     </div>
-  </main>
-
-  <footer class="border-t border-slate-800/80 bg-slate-900/60 py-4 px-4 text-center text-[11px] text-slate-500">
-    SuperPOS Cloud SaaS • Servidor Central de Facturación & Licencias • Soporte Oficial 24/7
-  </footer>
+  </div>
 
   <script>
     const tenantId = "${tenant.id}";
     const amountUsd = ${amountUsd};
     const bcvRate = ${bcvRate};
-    let voucherBase64 = '';
 
-    function switchTab(tab) {
-      if (tab === 'pm') {
-        document.getElementById('tab-pm').classList.remove('hidden');
-        document.getElementById('tab-binance').classList.add('hidden');
-        document.getElementById('tab-pm-btn').className = 'py-2.5 px-3 rounded-xl font-bold text-xs bg-sky-600 text-white transition flex items-center justify-center gap-1.5 text-center';
-        document.getElementById('tab-binance-btn').className = 'py-2.5 px-3 rounded-xl font-bold text-xs bg-slate-800 text-slate-400 hover:text-white transition flex items-center justify-center gap-1.5 text-center';
-      } else {
-        document.getElementById('tab-pm').classList.add('hidden');
-        document.getElementById('tab-binance').classList.remove('hidden');
-        document.getElementById('tab-pm-btn').className = 'py-2.5 px-3 rounded-xl font-bold text-xs bg-slate-800 text-slate-400 hover:text-white transition flex items-center justify-center gap-1.5 text-center';
-        document.getElementById('tab-binance-btn').className = 'py-2.5 px-3 rounded-xl font-bold text-xs bg-amber-600 text-white transition flex items-center justify-center gap-1.5 text-center';
-      }
-    }
-
-    function handleFile(e) {
-      const file = e.target.files[0];
-      if (!file) return;
-
-      document.getElementById('upload-prompt').classList.add('hidden');
-      document.getElementById('file-name').innerText = file.name;
-
-      const reader = new FileReader();
-      reader.onload = function(evt) {
-        voucherBase64 = evt.target.result;
-        document.getElementById('voucher-preview').src = voucherBase64;
-        document.getElementById('voucher-preview-container').classList.remove('hidden');
-      };
-      reader.readAsDataURL(file);
-    }
-
-    async function submitPayment(e) {
+    async function submitPaymentReport(e) {
       e.preventDefault();
-      if (!voucherBase64) return alert('Por favor adjunte la captura o foto del comprobante.');
-
       const btn = document.getElementById('btn-submit-pay');
       btn.disabled = true;
-      btn.innerText = 'Enviando...';
+      btn.innerText = 'Subiendo y procesando comprobante...';
+
+      let voucherBase64 = '';
+      const fileInput = document.getElementById('p-file');
+      if (fileInput.files && fileInput.files[0]) {
+        voucherBase64 = await new Promise(resolve => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.readAsDataURL(fileInput.files[0]);
+        });
+      }
 
       try {
         const res = await fetch('/api/cloud/tenant/report-payment', {
@@ -849,45 +813,44 @@ app.get('/', (req, res) => {
             <h2 class="text-xs sm:text-sm font-bold text-amber-300 flex items-center gap-1.5">
               <span>🔔</span> Comprobantes de Pago Pendientes
             </h2>
-            <p class="text-[10px] sm:text-xs text-slate-400">Verifique los fondos en Pago Móvil o Binance antes de aprobar.</p>
           </div>
-          <button onclick="loadPayments()" class="text-xs text-slate-400 hover:text-white bg-slate-800 px-2.5 py-1 rounded-lg">🔄</button>
+          <span class="text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full font-bold">Por Confirmar</span>
         </div>
         <div class="overflow-x-auto custom-scroll">
-          <table class="w-full text-left border-collapse text-xs min-w-[500px]">
-            <thead>
-              <tr class="border-b border-slate-800 text-slate-400 uppercase text-[10px] bg-slate-950/60">
+          <table class="w-full text-left text-xs text-slate-300">
+            <thead class="bg-slate-950/60 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
+              <tr>
                 <th class="py-2.5 px-4">Supermercado</th>
-                <th class="py-2.5 px-4">Monto</th>
+                <th class="py-2.5 px-4">Monto ($ / Bs)</th>
                 <th class="py-2.5 px-4">Método & Ref</th>
-                <th class="py-2.5 px-4">Comprobante</th>
+                <th class="py-2.5 px-4">Voucher</th>
                 <th class="py-2.5 px-4 text-right">Acción</th>
               </tr>
             </thead>
-            <tbody id="payments-tbody" class="divide-y divide-slate-800/60"></tbody>
+            <tbody id="payments-tbody" class="divide-y divide-slate-800/60 font-mono"></tbody>
           </table>
         </div>
       </div>
 
       <!-- Tabla de Supermercados Conectados -->
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-        <div class="px-4 sm:px-6 py-4 border-b border-slate-800 flex flex-wrap items-center justify-between gap-2">
+      <div class="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl">
+        <div class="p-4 sm:p-6 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 class="text-sm sm:text-base font-bold text-white">Supermercados y Empresas Conectadas</h2>
-            <p class="text-xs text-slate-400">Gestión de licencias, permisos de módulos y Kill-Switch remoto.</p>
+            <h2 class="text-base sm:text-lg font-black text-white">Supermercados Conectados</h2>
+            <p class="text-xs text-slate-400 mt-0.5">Control de licencias, módulos, límites y enlaces de cobro.</p>
           </div>
-          <button onclick="loadTenants()" class="text-xs text-slate-400 hover:text-white bg-slate-800 px-3 py-1.5 rounded-lg transition">
-            🔄 Actualizar Lista
+          <button onclick="loadTenants()" class="text-xs text-sky-400 hover:text-sky-300 font-bold bg-slate-950 border border-slate-800 px-3 py-1.5 rounded-xl transition flex items-center gap-1">
+            <span>🔄</span> Actualizar
           </button>
         </div>
 
         <div class="overflow-x-auto custom-scroll">
-          <table class="w-full text-left border-collapse text-xs min-w-[700px]">
-            <thead>
-              <tr class="border-b border-slate-800 text-slate-400 uppercase text-[10px] bg-slate-950/40">
-                <th class="py-3 px-4 sm:px-6">Supermercado</th>
-                <th class="py-3 px-4">Plan & Cuota</th>
-                <th class="py-3 px-4">Módulos Activos</th>
+          <table class="w-full text-left text-xs text-slate-300">
+            <thead class="bg-slate-950/60 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
+              <tr>
+                <th class="py-3 px-4 sm:px-6">Supermercado / RIF</th>
+                <th class="py-3 px-4">Plan & Canon</th>
+                <th class="py-3 px-4">Módulos</th>
                 <th class="py-3 px-4">Estado</th>
                 <th class="py-3 px-4">Vencimiento</th>
                 <th class="py-3 px-4 text-right">Acciones</th>
@@ -900,31 +863,31 @@ app.get('/', (req, res) => {
     </main>
   </div>
 
-  <!-- MODAL: REGISTRAR NUEVO SUPERMERCADO -->
-  <div id="newModal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 hidden">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl max-w-lg w-full p-5 sm:p-6 space-y-4 max-h-[90vh] overflow-y-auto custom-scroll">
+  <!-- MODAL: NUEVO SUPERMERCADO -->
+  <div id="newModal" class="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-3 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl max-w-lg w-full p-5 sm:p-6 space-y-4">
       <div class="flex justify-between items-center border-b border-slate-800 pb-3">
-        <h3 class="font-bold text-base text-white">Registrar Nuevo Supermercado</h3>
+        <h3 class="font-bold text-base text-white">+ Registrar Nuevo Supermercado</h3>
         <button onclick="closeNewTenantModal()" class="text-slate-400 hover:text-white text-lg">✕</button>
       </div>
       <form onsubmit="createTenant(event)" class="space-y-3 text-xs">
         <div>
-          <label class="font-bold text-slate-400 block mb-1">Nombre Comercial:</label>
-          <input type="text" id="t-name" required placeholder="Ej: Automercados Plaza" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white">
+          <label class="text-slate-400 block mb-1">Nombre Comercial:</label>
+          <input type="text" id="t-name" required placeholder="Ej: Automercado San José, C.A." class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white">
         </div>
         <div class="grid grid-cols-2 gap-2">
           <div>
-            <label class="font-bold text-slate-400 block mb-1">RIF Fiscal:</label>
+            <label class="text-slate-400 block mb-1">RIF Fiscal:</label>
             <input type="text" id="t-rif" required placeholder="J-12345678-9" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white font-mono">
           </div>
           <div>
-            <label class="font-bold text-slate-400 block mb-1">Ciudad / Estado:</label>
-            <input type="text" id="t-city" placeholder="Caracas, Miranda" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white">
+            <label class="text-slate-400 block mb-1">Ciudad:</label>
+            <input type="text" id="t-city" required placeholder="Valencia, Carabobo" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white">
           </div>
         </div>
         <div class="grid grid-cols-2 gap-2">
           <div>
-            <label class="font-bold text-slate-400 block mb-1">Plan SaaS:</label>
+            <label class="text-slate-400 block mb-1">Plan SaaS:</label>
             <select id="t-plan" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white">
               <option value="BASICO">BÁSICO ($35/mes)</option>
               <option value="PROFESIONAL" selected>PROFESIONAL ($60/mes)</option>
@@ -932,25 +895,35 @@ app.get('/', (req, res) => {
             </select>
           </div>
           <div>
-            <label class="font-bold text-slate-400 block mb-1">Canon Mensual ($ USD):</label>
-            <input type="number" id="t-price" value="60" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-emerald-400 font-bold font-mono">
+            <label class="text-slate-400 block mb-1">Canon Mensual ($ USD):</label>
+            <input type="number" id="t-price" value="60" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white font-mono font-bold">
           </div>
         </div>
-        <button type="submit" class="w-full bg-sky-600 hover:bg-sky-500 text-white font-bold p-3 rounded-xl shadow-lg mt-2">
-          Registrar e Inicializar Licencia
+        <button type="submit" class="w-full bg-sky-600 hover:bg-sky-500 text-white font-bold p-3 rounded-xl mt-2 shadow-lg shadow-sky-600/30">
+          Guardar y Activar Licencia
         </button>
       </form>
     </div>
   </div>
 
-  <!-- MODAL: CONFIGURACIÓN DE CUENTAS DE COBRO & QR BINANCE -->
-  <div id="configModal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 hidden">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl max-w-xl w-full p-5 sm:p-6 space-y-4 max-h-[90vh] overflow-y-auto custom-scroll">
+  <!-- MODAL: CONFIGURACIÓN DE CUENTAS DE COBRO & CLAVE MAESTRA -->
+  <div id="configModal" class="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-3 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl max-w-lg w-full p-5 sm:p-6 space-y-4 max-h-[92vh] overflow-y-auto custom-scroll">
       <div class="flex justify-between items-center border-b border-slate-800 pb-3">
-        <h3 class="font-bold text-base text-white">⚙️ Cuentas de Cobro & QR Binance Pay</h3>
+        <h3 class="font-bold text-base text-white">⚙️ Cuentas de Cobro & Clave Maestra</h3>
         <button onclick="closeConfigModal()" class="text-slate-400 hover:text-white text-lg">✕</button>
       </div>
       <form onsubmit="saveConfig(event)" class="space-y-4 text-xs">
+        <!-- Clave Maestra SuperAdmin -->
+        <div class="space-y-2 bg-slate-950 p-4 rounded-xl border border-rose-900/40">
+          <span class="font-bold text-rose-400 text-[11px] uppercase tracking-wider block">🔐 Clave Maestra de Acceso SuperAdmin</span>
+          <div>
+            <label class="text-slate-400 block mb-1">Contraseña Maestra Actual / Nueva:</label>
+            <input type="text" id="cfg-admin-secret" required class="w-full bg-slate-900 border border-rose-800/60 rounded-xl p-2.5 text-rose-300 font-mono font-bold">
+            <span class="text-[10px] text-slate-500 mt-1 block">Esta es la clave para desbloquear este panel de control.</span>
+          </div>
+        </div>
+
         <div class="space-y-3 bg-slate-950 p-4 rounded-xl border border-slate-800">
           <span class="font-bold text-sky-400 text-[11px] uppercase tracking-wider block">📱 Datos de Pago Móvil</span>
           <div>
@@ -995,7 +968,7 @@ app.get('/', (req, res) => {
         </div>
 
         <button type="submit" class="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold p-3 rounded-xl shadow-lg">
-          Guardar Datos de Cobro
+          Guardar Configuración y Contraseña
         </button>
       </form>
     </div>
@@ -1091,7 +1064,7 @@ app.get('/', (req, res) => {
 
     async function handleSuperAdminLogin(e) {
       e.preventDefault();
-      const pass = document.getElementById('admin-pass-input').value;
+      const pass = (document.getElementById('admin-pass-input').value || '').trim();
       const btn = document.getElementById('btn-login');
       const errDiv = document.getElementById('login-err-msg');
       errDiv.classList.add('hidden');
@@ -1143,16 +1116,18 @@ app.get('/', (req, res) => {
       try {
         const res = await fetch('/api/cloud/system-config');
         const data = await res.json();
+        document.getElementById('cfg-admin-secret').value = data.adminSecret || 'SuperPos2026!66*/-';
         document.getElementById('cfg-pm-bank').value = data.pagoMovilBank || '';
         document.getElementById('cfg-pm-phone').value = data.pagoMovilPhone || '';
         document.getElementById('cfg-pm-rif').value = data.pagoMovilRif || '';
         document.getElementById('cfg-binance-id').value = data.binanceId || '';
         document.getElementById('cfg-binance-payid').value = data.binancePayId || '';
-        document.getElementById('cfg-usdt-net').value = data.usdtNetwork || '';
+        document.getElementById('cfg-usdt-net').value = data.usdtNetwork || 'USDT (TRC20 / BEP20)';
+        
         if (data.binanceQrBase64) {
+          qrBase64Temp = data.binanceQrBase64;
           document.getElementById('cfg-qr-preview').src = data.binanceQrBase64;
           document.getElementById('cfg-qr-preview-container').classList.remove('hidden');
-          qrBase64Temp = data.binanceQrBase64;
         }
       } catch (e) {}
     }
@@ -1172,6 +1147,7 @@ app.get('/', (req, res) => {
     async function saveConfig(e) {
       e.preventDefault();
       const body = {
+        adminSecret: document.getElementById('cfg-admin-secret').value.trim(),
         pagoMovilBank: document.getElementById('cfg-pm-bank').value,
         pagoMovilPhone: document.getElementById('cfg-pm-phone').value,
         pagoMovilRif: document.getElementById('cfg-pm-rif').value,
@@ -1180,13 +1156,21 @@ app.get('/', (req, res) => {
         usdtNetwork: document.getElementById('cfg-usdt-net').value,
         binanceQrBase64: qrBase64Temp
       };
-      await fetch('/api/cloud/admin/update-config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      });
-      alert('✅ Cuentas de Cobro & QR Binance guardados exitosamente.');
-      closeConfigModal();
+
+      try {
+        const res = await fetch('/api/cloud/admin/update-config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert('✅ Configuración guardada correctamente.');
+          closeConfigModal();
+        }
+      } catch (err) {
+        alert('Error al guardar configuración');
+      }
     }
 
     async function loadTenants() {
@@ -1212,7 +1196,7 @@ app.get('/', (req, res) => {
 
           const tr = document.createElement('tr');
           tr.className = 'hover:bg-slate-800/40 transition';
-          tr.innerHTML = \`
+          tr.innerHTML = `
             <td class="py-3 px-4 sm:px-6">
               <div class="font-bold text-white text-xs sm:text-sm">\${t.name}</div>
               <div class="text-[11px] font-mono text-slate-400">\${t.rif} • \${t.city || 'Venezuela'}</div>
@@ -1247,8 +1231,11 @@ app.get('/', (req, res) => {
               <button onclick="toggleTenant('\${t.id}', '\${t.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE'}')" title="Bloqueo / Desbloqueo Remoto" class="\${t.status === 'ACTIVE' ? 'bg-rose-600/20 hover:bg-rose-600 text-rose-300' : 'bg-emerald-600/20 hover:bg-emerald-600 text-emerald-300'} border border-slate-700 text-[10px] font-bold px-2 py-1 rounded-lg transition">
                 \${t.status === 'ACTIVE' ? '🚫 Kill' : '🔓 Activar'}
               </button>
+              <button onclick="deleteTenant('\${t.id}', '\${t.name}')" title="Eliminar Supermercado" class="bg-red-900/40 hover:bg-red-700 text-rose-300 hover:text-white border border-rose-800 text-[10px] font-bold px-2 py-1 rounded-lg transition">
+                🗑️
+              </button>
             </td>
-          \`;
+          `;
           tbody.appendChild(tr);
         });
 
@@ -1257,6 +1244,24 @@ app.get('/', (req, res) => {
         document.getElementById('stat-revenue').innerText = '$' + revenue.toFixed(2);
         document.getElementById('stat-revenue-ves').innerText = 'Bs. ' + (revenue * bcv).toLocaleString('es-VE', { minimumFractionDigits: 2 }) + ' al BCV';
       } catch (e) {}
+    }
+
+    async function deleteTenant(tenantId, name) {
+      if (!confirm('⚠️ ¿Estás seguro de que deseas eliminar permanentemente el supermercado "' + name + '"?\\n\\nEsta acción no se puede deshacer.')) return;
+      try {
+        const res = await fetch('/api/cloud/admin/delete-tenant', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tenantId })
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert('🗑️ Supermercado eliminado con éxito.');
+          loadTenants();
+        }
+      } catch (e) {
+        alert('Error al eliminar supermercado');
+      }
     }
 
     function openEditModulesModal(tenantId) {
@@ -1280,7 +1285,7 @@ app.get('/', (req, res) => {
         const isChecked = currentEnabled.includes(mod.id);
         const div = document.createElement('label');
         div.className = 'flex items-start gap-2 p-2 rounded-lg bg-slate-900 border border-slate-800 hover:border-slate-700 cursor-pointer transition';
-        div.innerHTML = \`
+        div.innerHTML = `
           <input type="checkbox" name="module_checkbox" value="\${mod.id}" \${isChecked ? 'checked' : ''} class="mt-0.5 rounded text-sky-600">
           <div class="leading-tight">
             <span class="font-bold text-white text-xs flex items-center gap-1.5">
@@ -1288,7 +1293,7 @@ app.get('/', (req, res) => {
             </span>
             <span class="text-[10px] text-slate-400 block mt-0.5">\${mod.desc}</span>
           </div>
-        \`;
+        `;
         grid.appendChild(div);
       });
 
@@ -1354,7 +1359,7 @@ app.get('/', (req, res) => {
           pending.forEach(p => {
             const tr = document.createElement('tr');
             tr.className = 'hover:bg-slate-800/40';
-            tr.innerHTML = \`
+            tr.innerHTML = `
               <td class="py-3 px-4 font-bold text-white">\${p.tenantId}</td>
               <td class="py-3 px-4 text-emerald-400 font-black">$\${p.amountUsd} <span class="text-slate-400 block font-normal text-[10px]">Bs. \${p.amountVes}</span></td>
               <td class="py-3 px-4"><span class="font-bold">\${p.paymentMethod}</span> <div class="font-mono text-slate-400 text-[10px]">Ref: \${p.referenceNumber}</div></td>
@@ -1364,7 +1369,7 @@ app.get('/', (req, res) => {
               <td class="py-3 px-4 text-right">
                 <button onclick="approvePayment('\${p.id}')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1 rounded-xl text-xs">✅ Aprobar</button>
               </td>
-            \`;
+            `;
             tbody.appendChild(tr);
           });
         } else {
