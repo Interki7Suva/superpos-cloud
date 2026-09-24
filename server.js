@@ -1208,7 +1208,7 @@ app.get('/', (req, res) => {
             '<td class="py-3 px-4 font-mono text-[11px] text-slate-300">',
             '  ' + (t.nextDueDate ? new Date(t.nextDueDate).toLocaleDateString() : 'N/A'),
             '</td>',
-            '<td class="py-3 px-4 text-right space-x-1.5">',
+            '<td class="py-3 px-4 text-right space-x-1.5 whitespace-nowrap">',
             '  <button onclick="openEditModulesModal(\'' + t.id + '\')" title="Editar Módulos y Límites" class="bg-indigo-600/30 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-500/40 text-[10px] font-bold px-2 py-1 rounded-lg transition">✏️ Módulos</button>',
             '  <button onclick="copyPayLink(\'' + payLink + '\')" title="Copiar Enlace de Pago" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-bold px-2 py-1 rounded-lg transition">🔗 Link</button>',
             '  <button onclick="sendWhatsappBill(\'' + (t.name || '').replace(/'/g, "") + '\', \'' + (t.contactPhone || '') + '\', \'' + (t.monthlyPrice || 60) + '\', \'' + (((t.monthlyPrice || 60)*bcv).toFixed(2)) + '\', \'' + payLink + '\')" title="Enviar Cobro por WhatsApp" class="bg-emerald-600/30 hover:bg-emerald-600 text-emerald-300 hover:text-white text-[10px] font-bold px-2 py-1 rounded-lg transition">📲 WA</button>',
