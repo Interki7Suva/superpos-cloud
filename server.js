@@ -492,6 +492,64 @@ app.post('/api/cloud/admin/approve-payment', (req, res) => {
 });
 
 // ==============================================================================
+// 2.1 ACTUALIZACIONES OVER-THE-AIR (OTA) POR TENANT
+// ==============================================================================
+app.get('/api/cloud/updates/check', (req, res) => {
+  const { tenantId, currentVersion = '2.4.0' } = req.query || {};
+  const tenants = readJson(TENANTS_FILE, []);
+  const tenant = tenants.find(t => t.id === tenantId || t.rif === tenantId);
+  const cfg = readJson(CONFIG_FILE, {});
+
+  const targetVersion = (tenant && tenant.targetVersion) || cfg.latestVersion || '2.5.0';
+  const isTargeted = tenant && tenant.targetVersion
+    ? tenant.targetVersion !== currentVersion
+    : (tenantId === 'tenant-6hhacte' || tenantId === 'tenant-super-1' || cfg.globalOtaActive);
+
+  if (isTargeted && targetVersion !== currentVersion) {
+    return res.json({
+      updateAvailable: true,
+      currentVersion,
+      latestVersion: targetVersion,
+      releaseDate: new Date().toISOString().split('T')[0],
+      changelog: (tenant && tenant.changelog) || cfg.latestChangelog || [
+        'Arranque 100% silencioso en segundo plano sin consolas CMD',
+        'Optimización de impresión térmica POS-80',
+        'Sincronización instantánea de tasa BCV y licencias'
+      ],
+      downloadUrl: (tenant && tenant.downloadUrl) || cfg.latestDownloadUrl || 'https://superpos-cloud.onrender.com/api/cloud/updates/download/latest',
+      mandatory: !!(tenant && tenant.mandatoryUpdate),
+      message: `¡Nueva versión ${targetVersion} disponible para ${tenant ? tenant.name : tenantId}!`
+    });
+  }
+
+  return res.json({
+    updateAvailable: false,
+    currentVersion,
+    latestVersion: currentVersion,
+    message: 'Su sistema SuperPOS está al día.'
+  });
+});
+
+app.post('/api/cloud/admin/set-tenant-version', (req, res) => {
+  const { tenantId, targetVersion, downloadUrl, changelog, mandatory } = req.body || {};
+  let tenants = readJson(TENANTS_FILE, []);
+  const idx = tenants.findIndex(t => t.id === tenantId || t.rif === tenantId);
+  if (idx === -1) return res.status(404).json({ error: 'Supermercado no encontrado' });
+
+  tenants[idx].targetVersion = targetVersion || '2.5.0';
+  if (downloadUrl) tenants[idx].downloadUrl = downloadUrl;
+  if (changelog && Array.isArray(changelog)) tenants[idx].changelog = changelog;
+  tenants[idx].mandatoryUpdate = !!mandatory;
+
+  writeJson(TENANTS_FILE, tenants);
+  res.json({ 
+    success: true, 
+    message: `Versión ${tenants[idx].targetVersion} asignada exitosamente a ${tenants[idx].name}`, 
+    tenant: tenants[idx] 
+  });
+});
+
+// ==============================================================================
 // 3. PORTAL DE PAGO PÚBLICO (/pay/:tenantId)
 // ==============================================================================
 app.get('/pay/:tenantId', (req, res) => {
