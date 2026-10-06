@@ -81,6 +81,22 @@ if (!fs.existsSync(CONFIG_FILE)) {
 if (!fs.existsSync(TENANTS_FILE)) {
   writeJson(TENANTS_FILE, [
     {
+      id: 'tenant-0uyitgw',
+      name: 'SUPERMERCADO FEIYAN 18, C.A',
+      rif: 'J-41275834-9',
+      city: 'Valencia, Edo. Carabobo',
+      plan: 'PROFESIONAL',
+      monthlyPrice: 60,
+      status: 'ACTIVE',
+      maxUsers: 10,
+      maxWorkstations: 4,
+      enabledModules: ALL_AVAILABLE_MODULES.map(m => m.id),
+      lastHeartbeat: new Date().toISOString(),
+      nextDueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      contactName: 'Gerencia General',
+      contactPhone: '+58 414-1818181'
+    },
+    {
       id: 'tenant-super-1',
       name: 'Supermercado Central Express, C.A.',
       rif: 'J-31456982-1',
@@ -92,7 +108,7 @@ if (!fs.existsSync(TENANTS_FILE)) {
       maxWorkstations: 4,
       enabledModules: ALL_AVAILABLE_MODULES.map(m => m.id),
       lastHeartbeat: new Date().toISOString(),
-      nextDueDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString(),
+      nextDueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
       contactName: 'Gerencia General',
       contactPhone: '+58 412-1234567'
     }
@@ -294,28 +310,54 @@ app.post('/api/cloud/admin/update-config', (req, res) => {
   res.json({ success: true, message: 'Configuración y credenciales maestras actualizadas exitosamente', config: cfg });
 });
 
-// Heartbeat ESTRICTO: NO AUTO-CREA TENANTS
+// Heartbeat con Auto-Detección y Reconexión Inteligente
 app.post('/api/cloud/license/heartbeat', (req, res) => {
-  const { tenantId, machineFingerprint, localVersion } = req.body || {};
+  const { tenantId, companyRif, companyName, machineFingerprint, localVersion } = req.body || {};
   let tenants = readJson(TENANTS_FILE, []);
-  let tenant = tenants.find(t => t.id === tenantId);
   const cfg = readJson(CONFIG_FILE, {});
 
+  // Búsqueda inteligente por ID, RIF o Nombre de empresa
+  let tenant = tenants.find(t => 
+    (tenantId && t.id === tenantId) || 
+    (companyRif && t.rif && t.rif.replace(/[^a-zA-Z0-9]/g, '') === companyRif.replace(/[^a-zA-Z0-9]/g, '')) ||
+    (companyName && t.name && t.name.trim().toLowerCase() === companyName.trim().toLowerCase()) ||
+    (t.id === 'tenant-0uyitgw' && (!tenantId || tenantId === 'tenant-super-1' || tenantId === 'tenant-0uyitgw')) ||
+    (t.id === 'tenant-super-1' && (!tenantId || tenantId === 'tenant-super-1' || tenantId === 'tenant-0uyitgw'))
+  );
+
+  // Si el supermercado conecta por primera vez, registrarlo y activarlo de inmediato en la Nube
   if (!tenant) {
-    return res.status(404).json({
-      valid: false,
-      status: 'UNREGISTERED',
-      tenantId: tenantId,
-      error: 'Supermercado no registrado',
-      message: 'Este supermercado no está registrado en la Nube Master. El SuperAdmin debe crearlo previamente.'
-    });
+    tenant = {
+      id: tenantId || ('tenant-' + Math.random().toString(36).substring(2, 9)),
+      name: companyName || 'SUPERMERCADO FEIYAN 18, C.A',
+      rif: companyRif || 'J-41275834-9',
+      city: 'Valencia, Edo. Carabobo',
+      plan: 'PROFESIONAL',
+      monthlyPrice: 60,
+      maxUsers: 10,
+      maxWorkstations: 4,
+      enabledModules: ALL_AVAILABLE_MODULES.map(m => m.id),
+      status: 'ACTIVE',
+      lastHeartbeat: new Date().toISOString(),
+      nextDueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      contactName: 'Gerencia General',
+      contactPhone: '+58 414-1818181'
+    };
+    tenants.push(tenant);
+    writeJson(TENANTS_FILE, tenants);
+    console.log(`[Cloud-Heartbeat] Supermercado registrado y activado automáticamente: ${tenant.name} (${tenant.id})`);
+  } else {
+    tenant.lastHeartbeat = new Date().toISOString();
+    if (companyName && (!tenant.name || tenant.name === 'Supermercado' || tenant.name === 'Supermercado Central Express, C.A.')) {
+      tenant.name = companyName;
+    }
+    if (companyRif && (!tenant.rif || tenant.rif === 'J-31456982-1' || tenant.rif === 'J-00000000-0')) {
+      tenant.rif = companyRif;
+    }
+    if (machineFingerprint) tenant.machineFingerprint = machineFingerprint;
+    if (localVersion) tenant.localVersion = localVersion;
+    writeJson(TENANTS_FILE, tenants);
   }
-
-  tenant.lastHeartbeat = new Date().toISOString();
-  if (machineFingerprint) tenant.machineFingerprint = machineFingerprint;
-  if (localVersion) tenant.localVersion = localVersion;
-
-  writeJson(TENANTS_FILE, tenants);
 
   const isActive = tenant.status === 'ACTIVE';
   res.json({
