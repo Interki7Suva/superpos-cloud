@@ -439,36 +439,49 @@ app.post('/api/cloud/admin/generate-offline-token', (req, res) => {
   res.json({ success: true, token, expiresAt: payload.validUntil });
 });
 
-// Payments
-app.post('/api/cloud/tenant/report-payment', (req, res) => {
+// Payments & Subscriptions
+const handleReportPayment = (req, res) => {
   const body = req.body || {};
   let payments = readJson(PAYMENTS_FILE, []);
+  let tenants = readJson(TENANTS_FILE, []);
+
+  const tenant = tenants.find(t => t.id === body.tenantId || t.rif === body.tenantId) || { name: body.companyName || 'Supermercado' };
 
   const newPayment = {
-    id: 'pay-' + Date.now(),
-    tenantId: body.tenantId,
+    id: body.id || ('pay-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6)),
+    tenantId: body.tenantId || 'tenant-super-1',
+    companyName: body.companyName || tenant.name || 'Supermercado',
     amountUsd: Number(body.amountUsd) || 0,
     amountVes: Number(body.amountVes) || 0,
-    bcvRate: Number(body.bcvRate) || 854.4637,
-    paymentMethod: body.paymentMethod,
+    bcvRate: Number(body.bcvRate) || Number(body.exchangeRate) || 854.4637,
+    paymentMethod: body.paymentMethod || 'PAGO_MOVIL',
+    originBank: body.originBank || 'Banco Emisor',
+    destinationBank: body.destinationBank || 'Banesco / BDV',
     referenceNumber: body.referenceNumber || '',
-    voucherBase64: body.voucherBase64 || '',
+    voucherBase64: body.voucherBase64 || body.voucherImageUrl || '',
+    voucherImageUrl: body.voucherImageUrl || body.voucherBase64 || '',
     notes: body.notes || '',
-    status: 'PENDING',
+    status: 'PENDING_REVIEW',
     createdAt: new Date().toISOString()
   };
 
-  payments.push(newPayment);
+  payments.unshift(newPayment);
   writeJson(PAYMENTS_FILE, payments);
   res.json({ success: true, message: 'Pago reportado correctamente. El administrador validará su transacción.', payment: newPayment });
-});
+};
+
+app.post('/api/cloud/tenant/report-payment', handleReportPayment);
+app.post('/api/cloud/payments/report', handleReportPayment);
+app.post('/api/tenant/billing/report-payment', handleReportPayment);
+app.post('/api/tenant-billing/payments/report', handleReportPayment);
 
 app.get('/api/cloud/admin/payments', (req, res) => {
   res.json(readJson(PAYMENTS_FILE, []));
 });
 
-app.post('/api/cloud/admin/approve-payment', (req, res) => {
-  const { paymentId, extendDays = 30 } = req.body || {};
+const handleApprovePayment = (req, res) => {
+  const paymentId = req.params.id || req.body?.paymentId || req.body?.id;
+  const extendDays = Number(req.body?.extendDays) || 30;
   let payments = readJson(PAYMENTS_FILE, []);
   let tenants = readJson(TENANTS_FILE, []);
 
@@ -488,7 +501,63 @@ app.post('/api/cloud/admin/approve-payment', (req, res) => {
 
   writeJson(PAYMENTS_FILE, payments);
   writeJson(TENANTS_FILE, tenants);
-  res.json({ success: true, message: 'Pago aprobado y suscripción extendida por ' + extendDays + ' días' });
+  res.json({ success: true, message: 'Pago aprobado y suscripción extendida por ' + extendDays + ' días', payment: payments[pIdx] });
+};
+
+app.post('/api/cloud/admin/approve-payment', handleApprovePayment);
+app.post('/api/cloud/admin/payments/:id/approve', handleApprovePayment);
+
+const handleRejectPayment = (req, res) => {
+  const paymentId = req.params.id || req.body?.paymentId || req.body?.id;
+  const reason = req.body?.reason || 'Comprobante no verificado en cuenta bancaria';
+  let payments = readJson(PAYMENTS_FILE, []);
+
+  const pIdx = payments.findIndex(p => p.id === paymentId);
+  if (pIdx === -1) return res.status(404).json({ error: 'Pago no encontrado' });
+
+  payments[pIdx].status = 'REJECTED';
+  payments[pIdx].rejectedReason = reason;
+  payments[pIdx].rejectedAt = new Date().toISOString();
+
+  writeJson(PAYMENTS_FILE, payments);
+  res.json({ success: true, message: 'Pago rechazado exitosamente', payment: payments[pIdx] });
+};
+
+app.post('/api/cloud/admin/reject-payment', handleRejectPayment);
+app.post('/api/cloud/admin/payments/:id/reject', handleRejectPayment);
+
+const handleDeletePayment = (req, res) => {
+  const paymentId = req.params.id || req.body?.paymentId || req.body?.id;
+  let payments = readJson(PAYMENTS_FILE, []);
+  payments = payments.filter(p => p.id !== paymentId);
+  writeJson(PAYMENTS_FILE, payments);
+  res.json({ success: true, message: 'Comprobante eliminado' });
+};
+
+app.post('/api/cloud/admin/delete-payment', handleDeletePayment);
+app.delete('/api/cloud/admin/payments/:id', handleDeletePayment);
+
+// Endpoint de Modificación Manual de Fecha de Vencimiento
+app.post('/api/cloud/admin/set-due-date', (req, res) => {
+  const { tenantId, nextDueDate, extendDays } = req.body || {};
+  let tenants = readJson(TENANTS_FILE, []);
+  const idx = tenants.findIndex(t => t.id === tenantId);
+  if (idx === -1) return res.status(404).json({ error: 'Supermercado no encontrado' });
+
+  if (nextDueDate) {
+    tenants[idx].nextDueDate = new Date(nextDueDate).toISOString();
+  } else if (extendDays) {
+    const currentDue = new Date(tenants[idx].nextDueDate || Date.now());
+    const baseDate = currentDue.getTime() > Date.now() ? currentDue : new Date();
+    tenants[idx].nextDueDate = new Date(baseDate.getTime() + Number(extendDays) * 24 * 60 * 60 * 1000).toISOString();
+  }
+
+  if (new Date(tenants[idx].nextDueDate).getTime() > Date.now()) {
+    tenants[idx].status = 'ACTIVE';
+  }
+
+  writeJson(TENANTS_FILE, tenants);
+  res.json({ success: true, message: 'Fecha de vencimiento actualizada correctamente', tenant: tenants[idx] });
 });
 
 // ==============================================================================
@@ -867,27 +936,36 @@ app.get('/', (req, res) => {
         </div>
       </div>
 
-      <div id="pending-payments-section" class="bg-slate-900 border border-amber-800/40 rounded-2xl overflow-hidden shadow-xl hidden">
-        <div class="px-4 sm:px-6 py-3.5 border-b border-slate-800 bg-amber-950/20 flex items-center justify-between">
+      <div id="pending-payments-section" class="bg-slate-900 border border-amber-800/40 rounded-2xl overflow-hidden shadow-xl space-y-0">
+        <div class="px-4 sm:px-6 py-4 border-b border-slate-800 bg-amber-950/20 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 class="text-xs sm:text-sm font-bold text-amber-300 flex items-center gap-1.5">
-              <span>🔔</span> Comprobantes de Pago Pendientes
+            <h2 class="text-xs sm:text-sm font-black text-amber-300 flex items-center gap-2">
+              <span>💳</span> Bandeja de Pagos & Vouchers Reportados
             </h2>
+            <p class="text-[11px] text-slate-400 mt-0.5">Valide los comprobantes bancarios emitidos por los supermercados para extender el acceso al sistema.</p>
           </div>
-          <span class="text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full font-bold">Por Confirmar</span>
+          <div class="flex items-center gap-2">
+            <button onclick="setPaymentFilter('PENDING')" id="pf-pending" class="text-[10px] bg-amber-600 text-white font-bold px-3 py-1.5 rounded-xl transition shadow">⏳ Por Validar</button>
+            <button onclick="setPaymentFilter('APPROVED')" id="pf-approved" class="text-[10px] bg-slate-800 text-slate-400 hover:text-white font-bold px-3 py-1.5 rounded-xl transition">✅ Aprobados</button>
+            <button onclick="setPaymentFilter('ALL')" id="pf-all" class="text-[10px] bg-slate-800 text-slate-400 hover:text-white font-bold px-3 py-1.5 rounded-xl transition">📋 Todos</button>
+            <button onclick="loadPayments()" class="text-xs text-slate-400 hover:text-white bg-slate-800 px-2.5 py-1.5 rounded-xl transition">🔄</button>
+          </div>
         </div>
         <div class="overflow-x-auto custom-scroll">
           <table class="w-full text-left text-xs text-slate-300">
-            <thead class="bg-slate-950/60 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
+            <thead class="bg-slate-950/60 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800 font-mono">
               <tr>
-                <th class="py-2.5 px-4">Supermercado</th>
-                <th class="py-2.5 px-4">Monto ($ / Bs)</th>
-                <th class="py-2.5 px-4">Método & Ref</th>
-                <th class="py-2.5 px-4">Voucher</th>
-                <th class="py-2.5 px-4 text-right">Acción</th>
+                <th class="py-3 px-4">Supermercado</th>
+                <th class="py-3 px-4">Monto ($ / Bs)</th>
+                <th class="py-3 px-4">Método & Ref</th>
+                <th class="py-3 px-4">Fecha Pago</th>
+                <th class="py-3 px-4">Voucher</th>
+                <th class="py-3 px-4 text-right">Acciones</th>
               </tr>
             </thead>
-            <tbody id="payments-tbody" class="divide-y divide-slate-800/60 font-mono"></tbody>
+            <tbody id="payments-tbody" class="divide-y divide-slate-800/60 font-mono">
+              <tr><td colspan="6" class="py-6 text-center text-slate-500 font-sans">Cargando comprobantes...</td></tr>
+            </tbody>
           </table>
         </div>
       </div>
@@ -920,6 +998,78 @@ app.get('/', (req, res) => {
         </div>
       </div>
     </main>
+  </div>
+
+  <!-- MODAL: CAMBIAR FECHA DE VENCIMIENTO MANUAL -->
+  <div id="dueDateModal" class="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-3 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl max-w-md w-full p-5 sm:p-6 space-y-4 shadow-2xl">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+        <div>
+          <h3 class="font-black text-base text-white flex items-center gap-2">
+            <span>📅</span> Cambiar Vencimiento Manual
+          </h3>
+          <span id="dd-tenant-title" class="text-xs text-sky-400 font-bold block mt-0.5"></span>
+        </div>
+        <button onclick="closeDueDateModal()" class="text-slate-400 hover:text-white text-lg font-bold">✕</button>
+      </div>
+
+      <form onsubmit="saveDueDate(event)" class="space-y-4 text-xs">
+        <input type="hidden" id="dd-tenant-id">
+        
+        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2">
+          <div class="flex justify-between text-[11px]">
+            <span class="text-slate-400 font-semibold">Vencimiento Actual:</span>
+            <span id="dd-current-display" class="font-mono text-amber-300 font-bold"></span>
+          </div>
+          <div>
+            <label class="text-slate-400 block mb-1 font-bold">Nueva Fecha de Vencimiento:</label>
+            <input type="date" id="dd-input-date" required class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-white font-mono font-bold text-sm focus:border-sky-500 focus:outline-none">
+          </div>
+        </div>
+
+        <div>
+          <label class="text-slate-400 block mb-2 font-bold uppercase text-[10px] tracking-wider">Extensiones Rápidas con 1 Clic:</label>
+          <div class="grid grid-cols-3 gap-2">
+            <button type="button" onclick="addDaysToDueDate(15)" class="bg-slate-800 hover:bg-slate-700 text-slate-200 py-2 rounded-xl font-bold transition text-[11px] border border-slate-700">+15 Días</button>
+            <button type="button" onclick="addDaysToDueDate(30)" class="bg-emerald-950/60 hover:bg-emerald-900 text-emerald-300 py-2 rounded-xl font-bold transition text-[11px] border border-emerald-800">+30 Días (1M)</button>
+            <button type="button" onclick="addDaysToDueDate(90)" class="bg-slate-800 hover:bg-slate-700 text-slate-200 py-2 rounded-xl font-bold transition text-[11px] border border-slate-700">+3 Meses</button>
+            <button type="button" onclick="addDaysToDueDate(180)" class="bg-slate-800 hover:bg-slate-700 text-slate-200 py-2 rounded-xl font-bold transition text-[11px] border border-slate-700">+6 Meses</button>
+            <button type="button" onclick="addDaysToDueDate(365)" class="bg-sky-950/60 hover:bg-sky-900 text-sky-300 py-2 rounded-xl font-bold transition text-[11px] border border-sky-800">+1 Año</button>
+            <button type="button" onclick="setTodayDueDate()" class="bg-rose-950/60 hover:bg-rose-900 text-rose-300 py-2 rounded-xl font-bold transition text-[11px] border border-rose-800">Vencer Hoy</button>
+          </div>
+        </div>
+
+        <div class="pt-2 border-t border-slate-800 flex gap-2">
+          <button type="button" onclick="closeDueDateModal()" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold p-3 rounded-xl transition">Cancelar</button>
+          <button type="submit" class="flex-1 bg-gradient-to-r from-sky-600 to-emerald-600 hover:from-sky-500 hover:to-emerald-500 text-white font-bold p-3 rounded-xl shadow-lg transition">
+            💾 Guardar Fecha
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: AMPLIAR VOUCHER DE PAGO -->
+  <div id="voucherModal" class="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-3 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full p-5 sm:p-6 space-y-4 shadow-2xl relative">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+        <div>
+          <h3 class="font-bold text-base text-white flex items-center gap-2">
+            <span>🔍</span> Comprobante Bancario de Pago
+          </h3>
+          <span id="vm-details" class="text-xs text-amber-400 font-mono block mt-0.5"></span>
+        </div>
+        <button onclick="closeVoucherModal()" class="text-slate-400 hover:text-white text-lg font-bold">✕</button>
+      </div>
+      <div class="text-center p-2 bg-slate-950 rounded-xl border border-slate-800 max-h-[65vh] overflow-auto">
+        <img id="vm-img" src="" alt="Voucher" class="max-h-[55vh] mx-auto object-contain rounded-lg">
+        <div id="vm-no-img" class="py-12 text-slate-500 hidden">Sin imagen de comprobante adjunta</div>
+      </div>
+      <div class="flex justify-between items-center gap-2 pt-2 border-t border-slate-800">
+        <span id="vm-extra-info" class="text-[11px] text-slate-400 font-mono"></span>
+        <button onclick="closeVoucherModal()" class="px-5 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold transition">Cerrar</button>
+      </div>
+    </div>
   </div>
 
   <div id="newModal" class="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-3 hidden">
@@ -1108,6 +1258,8 @@ app.get('/', (req, res) => {
 
   <script>
     var rawTenants = [];
+    var rawPayments = [];
+    var currentPaymentFilter = 'PENDING';
     var qrBase64Temp = '';
     var availableModules = ${JSON.stringify(ALL_AVAILABLE_MODULES)};
 
@@ -1268,6 +1420,15 @@ app.get('/', (req, res) => {
           var modulesCount = (t.enabledModules || availableModules.map(function(m) { return m.id; })).length;
           var payLink = window.location.origin + '/pay/' + t.id;
 
+          // Days remaining calculation
+          var daysRemaining = 0;
+          var isExpired = false;
+          if (t.nextDueDate) {
+            var diffMs = new Date(t.nextDueDate).getTime() - Date.now();
+            daysRemaining = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+            if (daysRemaining < 0) isExpired = true;
+          }
+
           var tr = document.createElement('tr');
           tr.className = 'hover:bg-slate-800/40 transition';
           tr.innerHTML = [
@@ -1289,15 +1450,22 @@ app.get('/', (req, res) => {
             '    ' + (t.status === 'ACTIVE' ? 'ACTIVO' : 'SUSPENDIDO'),
             '  </span>',
             '</td>',
-            '<td class="py-3 px-4 font-mono text-[11px] text-slate-300">',
-            '  ' + (t.nextDueDate ? new Date(t.nextDueDate).toLocaleDateString() : 'N/A'),
+            '<td class="py-3 px-4">',
+            '  <div class="flex items-center gap-1.5">',
+            '    <div class="font-mono text-xs font-bold text-white">' + (t.nextDueDate ? new Date(t.nextDueDate).toLocaleDateString('es-VE') : 'N/A') + '</div>',
+            '    <button onclick="openDueDateModal(\\\'' + t.id + '\\\')" title="Cambiar fecha de vencimiento" class="text-sky-400 hover:text-sky-300 bg-sky-950/60 hover:bg-sky-900 border border-sky-800 text-[10px] font-bold px-1.5 py-0.5 rounded-lg transition">📅 Editar</button>',
+            '  </div>',
+            '  <div class="text-[10px] font-mono mt-0.5 ' + (isExpired ? 'text-rose-400 font-bold' : daysRemaining <= 5 ? 'text-amber-400 font-bold' : 'text-emerald-400') + '">',
+            '    ' + (isExpired ? '🔴 Vencido (' + Math.abs(daysRemaining) + 'd)' : '🟢 ' + daysRemaining + ' días restantes'),
+            '  </div>',
             '</td>',
-            '<td class="py-3 px-4 text-right space-x-1.5 whitespace-nowrap">',
+            '<td class="py-3 px-4 text-right space-x-1 whitespace-nowrap">',
+            '  <button onclick="openDueDateModal(\\\'' + t.id + '\\\')" title="Cambiar Fecha de Vencimiento" class="bg-amber-600/30 hover:bg-amber-600 text-amber-300 hover:text-white border border-amber-500/40 text-[10px] font-bold px-2 py-1 rounded-lg transition">📅 Fecha</button>',
             '  <button onclick="openEditModulesModal(\\\'' + t.id + '\\\')" title="Editar Módulos y Límites" class="bg-indigo-600/30 hover:bg-indigo-600 text-indigo-300 hover:text-white border border-indigo-500/40 text-[10px] font-bold px-2 py-1 rounded-lg transition">✏️ Módulos</button>',
             '  <button onclick="copyPayLink(\\\'' + payLink + '\\\')" title="Copiar Enlace de Pago" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-bold px-2 py-1 rounded-lg transition">🔗 Link</button>',
             '  <button onclick="sendWhatsappBill(\\\'' + t.id + '\\\')" title="Enviar Cobro por WhatsApp" class="bg-emerald-600/30 hover:bg-emerald-600 text-emerald-300 hover:text-white text-[10px] font-bold px-2 py-1 rounded-lg transition">📲 WA</button>',
             '  <button onclick="toggleTenant(\\\'' + t.id + '\\\', \\\'' + (t.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE') + '\\\')" title="Bloqueo / Desbloqueo Remoto" class="' + (t.status === 'ACTIVE' ? 'bg-amber-600/20 hover:bg-amber-600 text-amber-300' : 'bg-emerald-600/20 hover:bg-emerald-600 text-emerald-300') + ' border border-slate-700 text-[10px] font-bold px-2 py-1 rounded-lg transition">' + (t.status === 'ACTIVE' ? '🚫 Kill' : '🔓 Activar') + '</button>',
-            '  <button onclick="deleteTenant(\\\'' + t.id + '\\\')" title="Eliminar Supermercado" class="bg-rose-950 hover:bg-rose-800 text-rose-300 hover:text-white border border-rose-800 text-[10px] font-bold px-2.5 py-1 rounded-lg transition">🗑️ Eliminar</button>',
+            '  <button onclick="deleteTenant(\\\'' + t.id + '\\\')" title="Eliminar Supermercado" class="bg-rose-950 hover:bg-rose-800 text-rose-300 hover:text-white border border-rose-800 text-[10px] font-bold px-2 py-1 rounded-lg transition">🗑️</button>',
             '</td>'
           ].join('');
           tbody.appendChild(tr);
@@ -1307,6 +1475,243 @@ app.get('/', (req, res) => {
         document.getElementById('stat-suspended').innerText = suspended;
         document.getElementById('stat-revenue').innerText = '$' + revenue.toFixed(2);
         document.getElementById('stat-revenue-ves').innerText = 'Bs. ' + (revenue * bcv).toLocaleString('es-VE', { minimumFractionDigits: 2 }) + ' al BCV';
+      } catch (e) {}
+    }
+
+    // ==========================================
+    // MODAL DE MODIFICACIÓN DE FECHA DE VENCIMIENTO
+    // ==========================================
+    function openDueDateModal(tenantId) {
+      var tenant = rawTenants.find(function(t) { return t.id === tenantId; });
+      if (!tenant) return;
+
+      document.getElementById('dd-tenant-id').value = tenant.id;
+      document.getElementById('dd-tenant-title').innerText = tenant.name + ' (' + tenant.rif + ')';
+
+      var currentStr = tenant.nextDueDate ? new Date(tenant.nextDueDate).toLocaleDateString('es-VE') : 'Sin fecha';
+      document.getElementById('dd-current-display').innerText = currentStr;
+
+      // Set date input value to YYYY-MM-DD
+      var dateObj = tenant.nextDueDate ? new Date(tenant.nextDueDate) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      var yyyy = dateObj.getFullYear();
+      var mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+      var dd = String(dateObj.getDate()).padStart(2, '0');
+      document.getElementById('dd-input-date').value = yyyy + '-' + mm + '-' + dd;
+
+      document.getElementById('dueDateModal').classList.remove('hidden');
+    }
+
+    function closeDueDateModal() {
+      document.getElementById('dueDateModal').classList.add('hidden');
+    }
+
+    function addDaysToDueDate(days) {
+      var input = document.getElementById('dd-input-date');
+      var currentVal = input.value ? new Date(input.value) : new Date();
+      var base = currentVal.getTime() > Date.now() ? currentVal.getTime() : Date.now();
+      var newDate = new Date(base + days * 24 * 60 * 60 * 1000);
+      var yyyy = newDate.getFullYear();
+      var mm = String(newDate.getMonth() + 1).padStart(2, '0');
+      var dd = String(newDate.getDate()).padStart(2, '0');
+      input.value = yyyy + '-' + mm + '-' + dd;
+    }
+
+    function setTodayDueDate() {
+      var now = new Date();
+      var yyyy = now.getFullYear();
+      var mm = String(now.getMonth() + 1).padStart(2, '0');
+      var dd = String(now.getDate()).padStart(2, '0');
+      document.getElementById('dd-input-date').value = yyyy + '-' + mm + '-' + dd;
+    }
+
+    async function saveDueDate(e) {
+      e.preventDefault();
+      var tenantId = document.getElementById('dd-tenant-id').value;
+      var dateVal = document.getElementById('dd-input-date').value;
+      if (!tenantId || !dateVal) return;
+
+      try {
+        var res = await fetch('/api/cloud/admin/set-due-date', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tenantId: tenantId, nextDueDate: dateVal })
+        });
+        var data = await res.json();
+        if (data.success) {
+          alert('✅ Fecha de vencimiento actualizada exitosamente.');
+          closeDueDateModal();
+          loadTenants();
+        } else {
+          alert('Error: ' + (data.error || 'No se pudo actualizar'));
+        }
+      } catch (err) {
+        alert('Error al guardar fecha de vencimiento');
+      }
+    }
+
+    // ==========================================
+    // GESTIÓN DE BANDEJA DE PAGOS & VOUCHERS
+    // ==========================================
+    function setPaymentFilter(filter) {
+      currentPaymentFilter = filter;
+      document.getElementById('pf-pending').className = filter === 'PENDING' ? 'text-[10px] bg-amber-600 text-white font-bold px-3 py-1.5 rounded-xl transition shadow' : 'text-[10px] bg-slate-800 text-slate-400 hover:text-white font-bold px-3 py-1.5 rounded-xl transition';
+      document.getElementById('pf-approved').className = filter === 'APPROVED' ? 'text-[10px] bg-emerald-600 text-white font-bold px-3 py-1.5 rounded-xl transition shadow' : 'text-[10px] bg-slate-800 text-slate-400 hover:text-white font-bold px-3 py-1.5 rounded-xl transition';
+      document.getElementById('pf-all').className = filter === 'ALL' ? 'text-[10px] bg-sky-600 text-white font-bold px-3 py-1.5 rounded-xl transition shadow' : 'text-[10px] bg-slate-800 text-slate-400 hover:text-white font-bold px-3 py-1.5 rounded-xl transition';
+      renderPaymentsTable();
+    }
+
+    async function loadPayments() {
+      try {
+        var res = await fetch('/api/cloud/admin/payments');
+        rawPayments = await res.json();
+        
+        var pendingList = rawPayments.filter(function(p) { return p.status === 'PENDING' || p.status === 'PENDING_REVIEW'; });
+        document.getElementById('stat-pending-payments').innerText = pendingList.length;
+        
+        renderPaymentsTable();
+      } catch (e) {}
+    }
+
+    function renderPaymentsTable() {
+      var filtered = rawPayments;
+      if (currentPaymentFilter === 'PENDING') {
+        filtered = rawPayments.filter(function(p) { return p.status === 'PENDING' || p.status === 'PENDING_REVIEW'; });
+      } else if (currentPaymentFilter === 'APPROVED') {
+        filtered = rawPayments.filter(function(p) { return p.status === 'APPROVED'; });
+      }
+
+      var tbody = document.getElementById('payments-tbody');
+      tbody.innerHTML = '';
+
+      if (!filtered || filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="py-8 text-center text-slate-500 font-sans">No hay comprobantes en esta categoría.</td></tr>';
+        return;
+      }
+
+      filtered.forEach(function(p) {
+        var isPending = p.status === 'PENDING' || p.status === 'PENDING_REVIEW';
+        var isApproved = p.status === 'APPROVED';
+        var isRejected = p.status === 'REJECTED';
+
+        // Match company name
+        var tenant = rawTenants.find(function(t) { return t.id === p.tenantId; });
+        var compName = p.companyName || (tenant ? tenant.name : p.tenantId);
+        var voucherImg = p.voucherBase64 || p.voucherImageUrl || '';
+
+        var tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-800/40 transition';
+        tr.innerHTML = [
+          '<td class="py-3 px-4">',
+          '  <div class="font-bold text-white text-xs">' + compName + '</div>',
+          '  <div class="text-[10px] font-mono text-slate-400">ID: ' + p.tenantId + '</div>',
+          '</td>',
+          '<td class="py-3 px-4">',
+          '  <span class="text-emerald-400 font-black text-xs">$' + (p.amountUsd || 0) + ' USD</span>',
+          '  <span class="text-slate-400 block font-normal text-[10px]">Bs. ' + (p.amountVes ? Number(p.amountVes).toLocaleString('es-VE', {minimumFractionDigits: 2}) : '0.00') + '</span>',
+          '</td>',
+          '<td class="py-3 px-4">',
+          '  <span class="font-bold text-sky-400 text-xs">' + (p.paymentMethod || 'PAGO_MOVIL') + '</span>',
+          '  <div class="text-amber-300 text-[10px]">Ref: ' + (p.referenceNumber || 'S/R') + '</div>',
+          '</td>',
+          '<td class="py-3 px-4 text-[11px] text-slate-300">',
+          '  ' + (p.createdAt ? new Date(p.createdAt).toLocaleDateString('es-VE') : 'N/A'),
+          '</td>',
+          '<td class="py-3 px-4">',
+          '  ' + (voucherImg ? 
+                '<button onclick="openVoucherModal(\\\'' + p.id + '\\\')" class="text-sky-400 hover:text-sky-300 font-bold underline flex items-center gap-1"><span>🔍</span> Ver Voucher</button>' : 
+                '<span class="text-slate-500 italic text-[11px]">Sin imagen</span>'
+              ),
+          '</td>',
+          '<td class="py-3 px-4 text-right space-x-1.5 whitespace-nowrap">',
+          '  ' + (isPending ? 
+                '<button onclick="approvePayment(\\\'' + p.id + '\\\')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1.5 rounded-xl text-[11px] shadow transition">✅ Aprobar (+30d)</button>' +
+                '<button onclick="rejectPayment(\\\'' + p.id + '\\\')" class="bg-rose-950 hover:bg-rose-900 text-rose-300 border border-rose-800 font-bold px-2.5 py-1.5 rounded-xl text-[11px] transition">❌ Rechazar</button>' : 
+                (isApproved ? 
+                  '<span class="bg-emerald-950 text-emerald-300 border border-emerald-800 px-2 py-0.5 rounded-full text-[10px] font-bold">● APROBADO</span>' : 
+                  '<span class="bg-rose-950 text-rose-300 border border-rose-800 px-2 py-0.5 rounded-full text-[10px] font-bold">■ RECHAZADO</span>'
+                )
+              ),
+          '  <button onclick="deletePayment(\\\'' + p.id + '\\\')" title="Eliminar registro de pago" class="text-slate-500 hover:text-rose-400 px-2 py-1 text-xs transition">🗑️</button>',
+          '</td>'
+        ].join('');
+        tbody.appendChild(tr);
+      });
+    }
+
+    function openVoucherModal(paymentId) {
+      var p = rawPayments.find(function(pay) { return pay.id === paymentId; });
+      if (!p) return;
+
+      var imgUrl = p.voucherBase64 || p.voucherImageUrl || '';
+      var imgElem = document.getElementById('vm-img');
+      var noImgElem = document.getElementById('vm-no-img');
+
+      if (imgUrl) {
+        imgElem.src = imgUrl;
+        imgElem.classList.remove('hidden');
+        noImgElem.classList.add('hidden');
+      } else {
+        imgElem.classList.add('hidden');
+        noImgElem.classList.remove('hidden');
+      }
+
+      document.getElementById('vm-details').innerText = (p.companyName || p.tenantId) + ' | Ref: ' + p.referenceNumber + ' | $' + p.amountUsd + ' USD';
+      document.getElementById('vm-extra-info').innerText = 'Método: ' + p.paymentMethod + ' • Fecha: ' + (p.createdAt ? new Date(p.createdAt).toLocaleString('es-VE') : '');
+
+      document.getElementById('voucherModal').classList.remove('hidden');
+    }
+
+    function closeVoucherModal() {
+      document.getElementById('voucherModal').classList.add('hidden');
+    }
+
+    async function approvePayment(paymentId) {
+      if (!confirm('¿Confirma que ha verificado los fondos bancarios para APROBAR este pago y extender +30 días la suscripción del supermercado?')) return;
+      try {
+        var res = await fetch('/api/cloud/admin/approve-payment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ paymentId: paymentId, extendDays: 30 })
+        });
+        var data = await res.json();
+        if (data.success) {
+          alert('✅ ' + data.message);
+          loadPayments();
+          loadTenants();
+        }
+      } catch (e) {
+        alert('Error aprobando pago');
+      }
+    }
+
+    async function rejectPayment(paymentId) {
+      var reason = prompt('Indique el motivo de rechazo del comprobante:', 'Referencia bancaria no encontrada en cuenta');
+      if (!reason) return;
+      try {
+        var res = await fetch('/api/cloud/admin/reject-payment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ paymentId: paymentId, reason: reason })
+        });
+        var data = await res.json();
+        if (data.success) {
+          alert('❌ Pago marcado como rechazado.');
+          loadPayments();
+        }
+      } catch (e) {
+        alert('Error rechazando pago');
+      }
+    }
+
+    async function deletePayment(paymentId) {
+      if (!confirm('¿Desea eliminar este registro de comprobante de la lista?')) return;
+      try {
+        var res = await fetch('/api/cloud/admin/delete-payment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ paymentId: paymentId })
+        });
+        loadPayments();
       } catch (e) {}
     }
 
@@ -1417,58 +1822,6 @@ app.get('/', (req, res) => {
       }
     }
 
-    async function loadPayments() {
-      try {
-        var res = await fetch('/api/cloud/admin/payments');
-        var payments = await res.json();
-        var pending = payments.filter(function(p) { return p.status === 'PENDING'; });
-        document.getElementById('stat-pending-payments').innerText = pending.length;
-
-        var section = document.getElementById('pending-payments-section');
-        var tbody = document.getElementById('payments-tbody');
-        tbody.innerHTML = '';
-
-        if (pending.length > 0) {
-          section.classList.remove('hidden');
-          pending.forEach(function(p) {
-            var tr = document.createElement('tr');
-            tr.className = 'hover:bg-slate-800/40';
-            tr.innerHTML = [
-              '<td class="py-3 px-4 font-bold text-white">' + p.tenantId + '</td>',
-              '<td class="py-3 px-4 text-emerald-400 font-black">$' + p.amountUsd + ' <span class="text-slate-400 block font-normal text-[10px]">Bs. ' + p.amountVes + '</span></td>',
-              '<td class="py-3 px-4"><span class="font-bold">' + p.paymentMethod + '</span> <div class="font-mono text-slate-400 text-[10px]">Ref: ' + p.referenceNumber + '</div></td>',
-              '<td class="py-3 px-4">' + (p.voucherBase64 ? '<a href="' + p.voucherBase64 + '" target="_blank" class="text-sky-400 underline font-bold">Ver Voucher</a>' : 'Sin imagen') + '</td>',
-              '<td class="py-3 px-4 text-right">',
-              '  <button onclick="approvePayment(\\\'' + p.id + '\\\')" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1 rounded-xl text-xs">✅ Aprobar</button>',
-              '</td>'
-            ].join('');
-            tbody.appendChild(tr);
-          });
-        } else {
-          section.classList.add('hidden');
-        }
-      } catch (e) {}
-    }
-
-    async function approvePayment(paymentId) {
-      if (!confirm('¿Confirma que ha verificado los fondos recibidos para aprobar esta renovación?')) return;
-      try {
-        var res = await fetch('/api/cloud/admin/approve-payment', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ paymentId: paymentId })
-        });
-        var data = await res.json();
-        if (data.success) {
-          alert('✅ ' + data.message);
-          loadPayments();
-          loadTenants();
-        }
-      } catch (e) {
-        alert('Error aprobando pago');
-      }
-    }
-
     function copyPayLink(url) {
       navigator.clipboard.writeText(url);
       alert('📋 Enlace de pago copiado al portapapeles:\\n' + url);
@@ -1536,6 +1889,7 @@ app.get('/', (req, res) => {
   </script>
 </body>
 </html>
+
   `);
 });
 
