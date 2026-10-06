@@ -968,6 +968,23 @@ app.get('/', (req, res) => {
             </tbody>
           </table>
         </div>
+        <!-- Paginación de Pagos (Hasta 5 por página) -->
+        <div class="px-4 sm:px-6 py-3 border-t border-slate-800 bg-slate-950/60 flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div id="payments-pagination-info" class="text-slate-400 text-[11px] font-mono">
+            Mostrando 0 de 0 comprobantes
+          </div>
+          <div class="flex items-center gap-2">
+            <button id="btn-prev-payments" onclick="changePaymentsPage(-1)" class="bg-slate-800 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed text-slate-300 px-3 py-1.5 rounded-xl font-bold transition flex items-center gap-1 text-xs">
+              ◀ Anterior
+            </button>
+            <span id="payments-page-indicator" class="bg-slate-900 border border-slate-700 px-3 py-1 rounded-xl text-white font-mono font-bold text-xs">
+              Página 1 de 1
+            </span>
+            <button id="btn-next-payments" onclick="changePaymentsPage(1)" class="bg-slate-800 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed text-slate-300 px-3 py-1.5 rounded-xl font-bold transition flex items-center gap-1 text-xs">
+              Siguiente ▶
+            </button>
+          </div>
+        </div>
       </div>
 
       <div class="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl">
@@ -1550,14 +1567,33 @@ app.get('/', (req, res) => {
     }
 
     // ==========================================
-    // GESTIÓN DE BANDEJA DE PAGOS & VOUCHERS
+    // GESTIÓN DE BANDEJA DE PAGOS & VOUCHERS (5 POR PÁGINA)
     // ==========================================
+    var paymentsCurrentPage = 1;
+    var paymentsPerPage = 5;
+
     function setPaymentFilter(filter) {
       currentPaymentFilter = filter;
+      paymentsCurrentPage = 1;
       document.getElementById('pf-pending').className = filter === 'PENDING' ? 'text-[10px] bg-amber-600 text-white font-bold px-3 py-1.5 rounded-xl transition shadow' : 'text-[10px] bg-slate-800 text-slate-400 hover:text-white font-bold px-3 py-1.5 rounded-xl transition';
       document.getElementById('pf-approved').className = filter === 'APPROVED' ? 'text-[10px] bg-emerald-600 text-white font-bold px-3 py-1.5 rounded-xl transition shadow' : 'text-[10px] bg-slate-800 text-slate-400 hover:text-white font-bold px-3 py-1.5 rounded-xl transition';
       document.getElementById('pf-all').className = filter === 'ALL' ? 'text-[10px] bg-sky-600 text-white font-bold px-3 py-1.5 rounded-xl transition shadow' : 'text-[10px] bg-slate-800 text-slate-400 hover:text-white font-bold px-3 py-1.5 rounded-xl transition';
       renderPaymentsTable();
+    }
+
+    function changePaymentsPage(delta) {
+      var filtered = rawPayments;
+      if (currentPaymentFilter === 'PENDING') {
+        filtered = rawPayments.filter(function(p) { return p.status === 'PENDING' || p.status === 'PENDING_REVIEW'; });
+      } else if (currentPaymentFilter === 'APPROVED') {
+        filtered = rawPayments.filter(function(p) { return p.status === 'APPROVED'; });
+      }
+      var totalPages = Math.ceil((filtered || []).length / paymentsPerPage) || 1;
+      var newPage = paymentsCurrentPage + delta;
+      if (newPage >= 1 && newPage <= totalPages) {
+        paymentsCurrentPage = newPage;
+        renderPaymentsTable();
+      }
     }
 
     async function loadPayments() {
@@ -1580,15 +1616,41 @@ app.get('/', (req, res) => {
         filtered = rawPayments.filter(function(p) { return p.status === 'APPROVED'; });
       }
 
+      var totalCount = (filtered || []).length;
+      var totalPages = Math.ceil(totalCount / paymentsPerPage) || 1;
+      if (paymentsCurrentPage > totalPages) paymentsCurrentPage = totalPages;
+      if (paymentsCurrentPage < 1) paymentsCurrentPage = 1;
+
+      var startIndex = (paymentsCurrentPage - 1) * paymentsPerPage;
+      var endIndex = Math.min(startIndex + paymentsPerPage, totalCount);
+      var pageItems = (filtered || []).slice(startIndex, endIndex);
+
       var tbody = document.getElementById('payments-tbody');
       tbody.innerHTML = '';
 
-      if (!filtered || filtered.length === 0) {
+      // Actualizar información y botones de paginación
+      var infoElem = document.getElementById('payments-pagination-info');
+      if (infoElem) {
+        infoElem.innerText = totalCount === 0 
+          ? 'Mostrando 0 comprobantes' 
+          : 'Mostrando ' + (startIndex + 1) + ' a ' + endIndex + ' de ' + totalCount + ' comprobantes (5 por página)';
+      }
+      var pageIndElem = document.getElementById('payments-page-indicator');
+      if (pageIndElem) {
+        pageIndElem.innerText = 'Página ' + paymentsCurrentPage + ' de ' + totalPages;
+      }
+      
+      var prevBtn = document.getElementById('btn-prev-payments');
+      var nextBtn = document.getElementById('btn-next-payments');
+      if (prevBtn) prevBtn.disabled = paymentsCurrentPage <= 1;
+      if (nextBtn) nextBtn.disabled = paymentsCurrentPage >= totalPages;
+
+      if (!pageItems || pageItems.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6" class="py-8 text-center text-slate-500 font-sans">No hay comprobantes en esta categoría.</td></tr>';
         return;
       }
 
-      filtered.forEach(function(p) {
+      pageItems.forEach(function(p) {
         var isPending = p.status === 'PENDING' || p.status === 'PENDING_REVIEW';
         var isApproved = p.status === 'APPROVED';
         var isRejected = p.status === 'REJECTED';
