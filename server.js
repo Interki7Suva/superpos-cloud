@@ -111,6 +111,22 @@ if (!fs.existsSync(TENANTS_FILE)) {
       nextDueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
       contactName: 'Gerencia General',
       contactPhone: '+58 412-1234567'
+    },
+    {
+      id: 'tenant-pos-yara',
+      name: 'INVERSIONES POS YARA, C.A.',
+      rif: 'J-50491823-1',
+      city: 'Yara, Edo. Yaracuy',
+      plan: 'PROFESIONAL',
+      monthlyPrice: 60,
+      status: 'ACTIVE',
+      maxUsers: 10,
+      maxWorkstations: 4,
+      enabledModules: ALL_AVAILABLE_MODULES.map(m => m.id),
+      lastHeartbeat: new Date().toISOString(),
+      nextDueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      contactName: 'Gerencia General',
+      contactPhone: '+58 414-5550011'
     }
   ]);
 }
